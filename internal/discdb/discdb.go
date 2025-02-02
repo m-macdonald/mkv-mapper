@@ -1,4 +1,4 @@
-package main
+package discdb
 
 import (
 	"bufio"
@@ -10,17 +10,29 @@ import (
 
 var summaryRegex = regexp.MustCompile("^(.*): (.*)$")
 
-func loadDiscDbDef(config Config) (map[string]SummaryTitle, error) {
-    
+type SummaryTitle struct {
+    Name                    string
+    SourceFileName          string
+    Duration                string
+    ChaptersCount           string
+    Size                    string
+    SegmentCount            string
+    SegmentMap              string
+    Type                    string
+    Season                  string
+    Episode                 string
+    FileName                string
+}
+
+func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, error) {
     var summaryFileName string
-    if config.Disc > 9 {
-        summaryFileName = fmt.Sprintf("disc%d-summary.txt", config.Disc)
+    if discNum > 9 {
+        summaryFileName = fmt.Sprintf("disc%d-summary.txt", discNum)
     } else {
-        summaryFileName = fmt.Sprintf("disc0%d-summary.txt", config.Disc)
+        summaryFileName = fmt.Sprintf("disc0%d-summary.txt", discNum)
     }
 
-
-    path := filepath.Join(config.DiscDbDefs, config.Slug, summaryFileName)
+    path := filepath.Join(defDir, slug, summaryFileName)
     
     file, err := os.Open(path)
     if err != nil {

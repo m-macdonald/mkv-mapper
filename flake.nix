@@ -16,7 +16,8 @@
                 buildInputs = with pkgs; [
                     go
                     gopls
-                    gotools    
+                    gotools
+                    cobra-cli
                 ];
             };
         });

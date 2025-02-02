@@ -1,4 +1,4 @@
-package main
+package makemkv
 
 import (
     "bufio"
@@ -11,12 +11,8 @@ func splitLine(line string) []string {
     return strings.Split(line[6:], ",")
 }
 
-func getNextLine(reader *bufio.Reader) (string, error) {
-    return reader.ReadString('\n')
-}
-
-func ripDisc(config Config) error {
-    cmd := exec.Command(config.MakeMkvPath, "mkv", "disc:0", "all", config.MkvDest, "--robot")
+func RipDisc(makeMkvPath string, opticalDriveNum int, destDir string) error {
+    cmd := exec.Command(makeMkvPath, "mkv", fmt.Sprintf("disc:%d", opticalDriveNum), "all", destDir, "--robot")
     _, err := cmd.StdoutPipe()
     if err != nil {
         return err
@@ -32,8 +28,8 @@ func ripDisc(config Config) error {
     return nil
 }
 
-func readTitles(config Config) (map[string]string, error) {
-    cmd := exec.Command(config.MakeMkvPath, "info", "disc:0", "--robot")
+func ReadTitles(makeMkvPath string, opticalDriveNum int) (map[string]string, error) {
+    cmd := exec.Command(makeMkvPath, "info", fmt.Sprint("disc:%d", opticalDriveNum), "--robot")
     stdOutPipe, err := cmd.StdoutPipe()
     if err != nil {
         return nil, fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err) 
