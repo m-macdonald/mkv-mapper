@@ -1,17 +1,10 @@
 package main
 
 import (
-	// "bufio"
-	"bufio"
 	"fmt"
-	"io"
-	"strings"
-
-	// "io"
 	"os"
-	"os/exec"
 
-	//	"github.com/spf13/pflag"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -19,96 +12,71 @@ type Config struct {
     MakeMkvPath     string
     DiscDbDefs      string
     MkvDest         string
+    Disc            int
+    Slug            string
 }
 
 func  main() {
+    pflag.Int("disc", 1, "The number of the disc as defined in discdb.")
+    pflag.String("slug", "", "The path to the slug of the disc.")
+
+    pflag.Parse()
+
     viper.SetConfigName("config")
     viper.AddConfigPath("./")
+    viper.BindPFlags(pflag.CommandLine)
     err := viper.ReadInConfig()
-    fmt.Printf("%s", err)
-
+    if err != nil {
+        fmt.Printf("%s", err)
+    }
+    
     var config Config
     err = viper.Unmarshal(&config)
-    fmt.Printf("%s", err)
+    if err != nil {
+        fmt.Printf("%s", err)
+    }
+
+    for _, key := range viper.AllKeys() {
+        fmt.Printf("%s: %s\n", key, viper.Get(key))
+    }
+
+    fmt.Printf("%s", config)
+
     // Do something with this result
     checkPath(config.MakeMkvPath)
     checkPath(config.DiscDbDefs)
+    
+    // It might be useful to write the title results to a file that can be read back later.
+    // Could allow for me to manually create a title map that this code reads in and just does the mapping if the disc wasn't ripped by this code
+    // titles, err := readTitles(config) 
+    // if err != nil {
+    //     fmt.Printf("%s", err)
+    // }
+    // fmt.Printf("Titles: %s\n", titles)
 
-    readTitles(config)
-
+    // Maybe eventually allow for discs to be chained, so that the code automatically preps for the next disc to be inserted and rips that one next?
+    discMap, err := loadDiscDbDef(config)
+    if err != nil {
+        fmt.Printf("%s", err)
+    }
+    fmt.Printf("%s\n", discMap)
     // os.MkdirAll(config.MkvDest + "Oppenheimer", os.ModePerm)
-
-    // cmd := exec.Command(config.MakeMkvPath, "mkv", "disc:0", "all", config.MkvDest)
-    // cmd.Stderr = os.Stderr
-    // cmd.Stdout = os.Stdout
-    // if err = cmd.Run(); err != nil {
-    //     fmt.Printf("%s", err)
-    // }
-    // _, err = cmd.StdoutPipe()
-    // if err = cmd.Start(); err != nil {
-    //     fmt.Printf("%s", err)
-    //
-    //     return
-    // }
-    //
-    // go func(p io.ReadCloser) {
-    //     reader := bufio.NewReader(pipe)
-    //     line, err := reader.ReadString('\n')
-    //     for err == nil {
-    //         fmt.Println(line)
-    //         line, err = reader.ReadString('\n')
-    //     }
-    // }(pipe)
-
-    //
-    // if err = cmd.Wait(); err != nil {
-    //     // Log the error
-    //     fmt.Printf("%s", err)
-    // }
 
     // Now inspect the files in the output folder and map them to their proper names in the disc db
 }
 
-type Title struct {
-    FileName        string
-    MplsName        string
-}
-
-func readTitles(config Config) {
-    cmd := exec.Command(config.MakeMkvPath, "info", "disc:0", "--robot")
-    pipe, err := cmd.StdoutPipe()
-    cmd.Start()
-    // titles := make(map[string]string)
-    
-    go func(p io.ReadCloser) {
-        reader := bufio.NewReader(p)
-        // Might need OS-specific files that define constants for things like a linebreak
-        line, err := reader.ReadString('\n')
-        fmt.Printf("%s", line)
-        for err == nil {
-            if (!strings.HasPrefix(line, "TINFO")) {
-                line, err = reader.ReadString('\n')
-                // fmt.Printf(line)
-                continue
-            }
-            params := strings.Split(line[6:], ",")
-            // fmt.Printf("%s", params)
-    //Might need to consider using the track number for uniqueness just while parsing these
-            // 16 is the mpls name
-            // 27 is the name of that makemkv will give the file
-            if (params[1] == "16") {
-                fmt.Printf("%s", params[3])
-            } else if (params[1] == "27") {
-                fmt.Printf("%s", params[3])
-            }
-
-            line, err = reader.ReadString('\n')
-        }
-    }(pipe)
-
-    if err = cmd.Wait(); err != nil {
-        fmt.Printf("%s", err)
-    }
+type SummaryTitle struct {
+    Name                    string
+    SourceFileName          string
+    Duration                string
+    ChaptersCount           string
+    Size                    string
+    SegmentCount            string
+    SegmentMap              string
+    Type                    string
+    Season                  string
+    Episode                 string
+    FileName                string
 }
 
 func checkPath(path string) bool {
