@@ -3,8 +3,10 @@ module m-macdonald/mkv-mapper
 go 1.23.4
 
 require (
+	github.com/alexeyco/simpletable v1.0.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charlievieth/fastwalk v1.0.9 // indirect
+	github.com/charmbracelet/bubbles v0.20.0 // indirect
 	github.com/charmbracelet/bubbletea v1.2.4 // indirect
 	github.com/charmbracelet/lipgloss v1.0.0 // indirect
 	github.com/charmbracelet/x/ansi v0.4.5 // indirect

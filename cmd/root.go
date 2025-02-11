@@ -1,15 +1,16 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
-    "fmt"
+	"context"
+	"fmt"
+	"m-macdonald/mkv-mapper/internal/config"
 	"os"
 
 	"github.com/spf13/cobra"
-    "github.com/spf13/viper"
+	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -24,7 +25,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	PersistentPreRun: initConfig,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -38,19 +39,30 @@ func Execute() {
 
 var defaultCfgFile = "$HOME/.config/mkv-mapper.json"
 
+var debug, cfgFile string
+
 func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-    var debug, cfgFile string
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, fmt.Sprintf("config file (default is %s)", defaultCfgFile))
     rootCmd.PersistentFlags().StringVar(&debug, "debug", "", "")
         
-    configureViper()
-}
-
-func configureViper() {
     viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
     viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
+}
+
+func initConfig(cmd *cobra.Command, args []string) {
+    fmt.Println("init config")
+
+    viper.SetConfigFile(cfgFile)
+    viper.ReadInConfig()
+    var cfg config.Config
+    viper.Unmarshal(&cfg)
+
+    ctx := context.Background()
+    ctx = context.WithValue(ctx, "GLOBAL", cfg)
+
+    cmd.SetContext(ctx)
 }

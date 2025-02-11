@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+    "strings"
 )
 
 var summaryRegex = regexp.MustCompile("^(.*): (.*)$")
@@ -25,6 +26,7 @@ type SummaryTitle struct {
 }
 
 func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, error) {
+    // TODO: Check that discNum is greater than 0
     var summaryFileName string
     if discNum > 9 {
         summaryFileName = fmt.Sprintf("disc%d-summary.txt", discNum)
@@ -33,10 +35,10 @@ func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, 
     }
 
     path := filepath.Join(defDir, slug, summaryFileName)
-    
+    // TODO: Should log this path
+    fmt.Println(path)
     file, err := os.Open(path)
     if err != nil {
-        // Do something
         return nil, err
     }
     defer file.Close()
@@ -47,10 +49,11 @@ func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, 
     title := SummaryTitle {}
     for scanner.Scan() {
         line := scanner.Text()
+        fmt.Println(line)
         matches := summaryRegex.FindStringSubmatch(line)
 
         if matches == nil || len(matches) == 0  {
-            titles[title.SourceFileName] = title
+            titles[strings.TrimSpace(title.SourceFileName)] = title
             title = SummaryTitle {}
             continue
         } 
@@ -80,6 +83,8 @@ func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, 
             title.FileName = matches[2]
         } 
     }
+
+    titles[title.SourceFileName] = title
 
     return titles, nil
 }

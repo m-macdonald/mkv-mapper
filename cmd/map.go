@@ -5,12 +5,12 @@ package cmd
 
 import (
 	"fmt"
-	"m-macdonald/mkv-mapper/internal/config"
-	"m-macdonald/mkv-mapper/internal/discdb"
-	"m-macdonald/mkv-mapper/internal/makemkv"
-
+	// "m-macdonald/mkv-mapper/internal/config"
+	// "m-macdonald/mkv-mapper/internal/discdb"
+	// "m-macdonald/mkv-mapper/internal/makemkv"
+	//
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	// "github.com/spf13/viper"
 )
 
 // mapCmd represents the mp command
