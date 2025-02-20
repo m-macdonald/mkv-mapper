@@ -11,6 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	// "go.uber.org/zap/zapcore"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -39,7 +41,8 @@ func Execute() {
 
 var defaultCfgFile = "$HOME/.config/mkv-mapper.json"
 
-var debug, cfgFile string
+var debug bool
+var cfgFile string
 
 func init() {
 	// Here you will define your flags and configuration settings.
@@ -47,22 +50,44 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, fmt.Sprintf("config file (default is %s)", defaultCfgFile))
-    rootCmd.PersistentFlags().StringVar(&debug, "debug", "", "")
+    rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Pass this flag to output more logging as mkv-mapper works")
         
     viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
     viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
 }
 
 func initConfig(cmd *cobra.Command, args []string) {
-    fmt.Println("init config")
+    // var logLevel zapcore.Level;
+    // if debug {
+    //     logLevel = zap.DebugLevel
+    // } else {
+    //     logLevel = zap.InfoLevel
+    // }
+
+    // loggerConfig := zap.Config {
+    //     Level: zap.NewAtomicLevelAt(logLevel),
+    //     Development: false,
+    //     DisableCaller: false,
+    //     Encoding: "console",
+    //     OutputPaths: []string { "stdout" },
+    //     ErrorOutputPaths: []string { "stderr" },
+    // }
+
+    // Sugaring the logger by default as this is code is not performance critical
+    logger := zap.Must(zap.NewDevelopment()).Sugar()
+
+    logger.Infoln("Initializing global config")
 
     viper.SetConfigFile(cfgFile)
     viper.ReadInConfig()
     var cfg config.Config
     viper.Unmarshal(&cfg)
 
+
     ctx := context.Background()
     ctx = context.WithValue(ctx, "GLOBAL", cfg)
+    ctx = context.WithValue(ctx, "LOGGER", logger)
+    logger.Infof("%s", ctx)
 
     cmd.SetContext(ctx)
 }

@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-    "strings"
+	"strings"
+
+	"go.uber.org/zap"
 )
 
 var summaryRegex = regexp.MustCompile("^(.*): (.*)$")
@@ -25,7 +27,7 @@ type SummaryTitle struct {
     FileName                string
 }
 
-func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, error) {
+func LoadDef(logger *zap.SugaredLogger, defDir string, discNum int, slug string) (map[string]SummaryTitle, error) {
     // TODO: Check that discNum is greater than 0
     var summaryFileName string
     if discNum > 9 {
@@ -35,8 +37,7 @@ func LoadDef(defDir string, discNum int, slug string) (map[string]SummaryTitle, 
     }
 
     path := filepath.Join(defDir, slug, summaryFileName)
-    // TODO: Should log this path
-    fmt.Println(path)
+    logger.Debugf("Looking for summary file at %s\n", path)
     file, err := os.Open(path)
     if err != nil {
         return nil, err

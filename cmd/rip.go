@@ -5,14 +5,14 @@ package cmd
 
 import (
 	"fmt"
-    "os"
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 
+	"github.com/alexeyco/simpletable"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-    "github.com/alexeyco/simpletable"
+	"go.uber.org/zap"
 )
 
 // ripCmd represents the rip command
@@ -35,7 +35,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// ripCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	ripCmd.Flags().Int("drive", 0, "The number of your optical drive as defined by makemkv (default is 0)")
+	ripCmd.Flags().Int("drive", 1, "The number of your optical drive as defined by makemkv (default is 0)")
     ripCmd.Flags().String("slug", "", "The slug of the disc as defined in TheDiscDB")
     // TODO: Consolidate Viper configuration
     viper.BindPFlag("drive", ripCmd.Flags().Lookup("drive"))
@@ -43,47 +43,37 @@ func init() {
 }
 
 func runRip(cmd *cobra.Command, args []string) {
-    var cfg config.Config
-    if val, ok := cmd.Context().Value("GLOBAL").(config.Config); !ok {
-        // TODO: This needs proper error messaging
-        fmt.Printf("%v", cmd.Context())
-        os.Exit(1)
-    } else {
-        cfg = val
+    logger, ok := cmd.Context().Value("LOGGER").(*zap.SugaredLogger)
+    if !ok {
+        panic("Failed to retrieve logger from context. Unable to continue.")
+    }
+    
+    cfg, ok := cmd.Context().Value("GLOBAL").(config.Config)
+    if !ok {
+        logger.Panicln("Failed to retrieve global config from context. Unable to continue.", "context", cmd.Context())
     }
 
-    titles, err := makemkv.ReadTitles(cfg.MakeMkvPath, cfg.DriveNum)
+    titles, err := makemkv.ReadTitles(logger, cfg.MakeMkvPath, cfg.DriveNum)
     if err != nil {
-        // TODO: Do Something with the error
-        fmt.Sprintln("%s", err)
+        logger.Panicln("Unable to read disc titles using MakeMkv", err)
     }
-    fmt.Printf("%v", titles)
-    for mplsFile, _ := range titles {
-        fmt.Println("Makemkv mplsFile names")
-        fmt.Printf("%s: [% x] %U\n", mplsFile, []byte(mplsFile), []rune(mplsFile))
-    }
+    // For now just going to write the titles to log. Maybe format this a bit better in the future
+    logger.Debug("MakeMkv Titles", titles)
+
     // Second param is the disc number
     // Third is the slug of the title
-    discDef, err := discdb.LoadDef(cfg.DiscDbDefs, 1, "/series/Black Sails (2014)/2018-complete-collection-blu-ray")
+    discDef, err := discdb.LoadDef(logger, cfg.DiscDbDefs, 1, "/series/Black Sails (2014)/2018-complete-collection-blu-ray")
     if err != nil {
-        fmt.Sprintln("%s", err)
-    }
-    for mplsFile, _ := range discDef {
-        fmt.Println("DiscDB mplsFile names")
-        fmt.Printf("%s: [% x] %U\n", mplsFile, []byte(mplsFile), []rune(mplsFile))
+        logger.Panicln("Failed to retrieve disc definitions from TheDiscDB", err)
     }
 
-    fmt.Printf("%v", discDef)
     mappings := make(map[string]discdb.SummaryTitle)
-    for mplsFile, summary := range discDef {
-        fmt.Printf("Mpls: %s", mplsFile)
-        if mapped, ok := titles[mplsFile]; !ok {
-            // TODO: Inform the user things are not ok
-            fmt.Printf("Mapping failed for: %s\n", mplsFile)
+    for mplsFile, outputName := range titles {
+        if mapped, ok := discDef[mplsFile]; !ok {
+            logger.Warnf("Failed to map %s to a DiscDB definition\n", mplsFile)
         } else {
-            fmt.Printf("mapping: %v\n", mapped)
-            // Need a check to make sure that we were actually able to retrieve "mapped" and it's not nil
-            mappings[mapped] = summary
+            logger.Debugf("Mapped %s to DiscDB definition %v\n", outputName, mapped)
+            mappings[outputName] = mapped 
         }
     }
 
@@ -108,5 +98,10 @@ func runRip(cmd *cobra.Command, args []string) {
     }
 
     table.SetStyle(simpletable.StyleCompactClassic)
-    fmt.Println(table.String())
+    logger.Infoln("Mappings")
+    logger.Infoln(table.String())
+
+    logger.Info("Beginning disc rip...")
+    makemkv.RipDisc(cfg.MakeMkvPath, cfg.DriveNum, cfg.MkvDest)
+
 }
