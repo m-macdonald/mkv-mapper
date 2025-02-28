@@ -8,6 +8,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/mapper"
 
 	"github.com/alexeyco/simpletable"
 	"github.com/spf13/cobra"
@@ -67,7 +68,7 @@ func runRip(cmd *cobra.Command, args []string) {
         logger.Panicln("Failed to retrieve disc definitions from TheDiscDB", err)
     }
 
-    mappings := make(map[string]discdb.SummaryTitle)
+    mappings := make(map[string]discdb.TitleSummary)
     for mplsFile, outputName := range titles {
         if mapped, ok := discDef[mplsFile]; !ok {
             logger.Warnf("Failed to map %s to a DiscDB definition\n", mplsFile)
@@ -101,7 +102,12 @@ func runRip(cmd *cobra.Command, args []string) {
     logger.Infoln("Mappings")
     logger.Infoln(table.String())
 
-    logger.Info("Beginning disc rip...")
-    makemkv.RipDisc(cfg.MakeMkvPath, cfg.DriveNum, cfg.MkvDest)
-
+    logger.Infoln("Beginning disc rip...")
+    makemkv.RipDisc(logger, cfg.MakeMkvPath, cfg.DriveNum, cfg.MkvDest)
+    mapErrors := mapper.Map(cfg.MkvDest, mappings)
+    if mapErrors != nil {
+        logger.Errorln("Error(s) while mapping .mpls files")
+    } else {
+        logger.Infoln("Mapping complete")
+    }
 }

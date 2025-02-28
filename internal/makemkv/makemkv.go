@@ -12,16 +12,21 @@ import (
 
 var titleParser = regexp.MustCompile(`(.*):\d+,(\d+),\d+,"(.*)"`)
 
-func RipDisc(makeMkvPath string, opticalDriveNum int, destDir string) error {
+func RipDisc(logger *zap.SugaredLogger, makeMkvPath string, opticalDriveNum int, destDir string) error {
     cmd := exec.Command(makeMkvPath, "mkv", fmt.Sprintf("disc:%d", opticalDriveNum), "all", destDir, "--robot")
-    _, err := cmd.StdoutPipe()
+    stdOutPipe, err := cmd.StdoutPipe()
     if err != nil {
-        return err
+        return fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
     }
-    cmd.Start()
+    if err = cmd.Start(); err != nil {
+        return fmt.Errorf("Failed to start ", err)
+    }
 
-    // TODO: Display current ripping progress
-
+    scanner := bufio.NewScanner(stdOutPipe)
+    for scanner.Scan() {
+        nextLine(logger, scanner)
+    }
+    
     if err = cmd.Wait(); err != nil {
         return err
     }

@@ -13,7 +13,7 @@ import (
 
 var summaryRegex = regexp.MustCompile("^(.*): (.*)$")
 
-type SummaryTitle struct {
+type TitleSummary struct {
     Name                    string
     SourceFileName          string
     Duration                string
@@ -27,7 +27,7 @@ type SummaryTitle struct {
     FileName                string
 }
 
-func LoadDef(logger *zap.SugaredLogger, defDir string, discNum int, slug string) (map[string]SummaryTitle, error) {
+func LoadDef(logger *zap.SugaredLogger, defDir string, discNum int, slug string) (map[string]TitleSummary, error) {
     // TODO: Check that discNum is greater than 0
     var summaryFileName string
     if discNum > 9 {
@@ -44,10 +44,10 @@ func LoadDef(logger *zap.SugaredLogger, defDir string, discNum int, slug string)
     }
     defer file.Close()
 
-    titles := make(map[string]SummaryTitle)
+    titles := make(map[string]TitleSummary)
 
     scanner := bufio.NewScanner(file)
-    title := SummaryTitle {}
+    title := TitleSummary {}
     for scanner.Scan() {
         line := scanner.Text()
         fmt.Println(line)
@@ -55,7 +55,7 @@ func LoadDef(logger *zap.SugaredLogger, defDir string, discNum int, slug string)
 
         if matches == nil || len(matches) == 0  {
             titles[strings.TrimSpace(title.SourceFileName)] = title
-            title = SummaryTitle {}
+            title = TitleSummary {}
             continue
         } 
 
