@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"go.uber.org/zap"
 )
+
 
 var titleParser = regexp.MustCompile(`(.*):\d+,(\d+),\d+,"(.*)"`)
 
@@ -83,7 +85,7 @@ func ReadTitles(logger *zap.SugaredLogger,makeMkvPath string, opticalDriveNum in
     }
 
     if err = cmd.Wait(); err != nil {
-        return nil, fmt.Errorf("Error ocurred while waiting for makemkv to finish processing the disc: %w", err)
+        return nil, fmt.Errorf("Error occurred while waiting for makemkv to finish processing the disc: %w", err)
     }
 
     return titles, nil
