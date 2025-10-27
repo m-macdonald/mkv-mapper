@@ -28,7 +28,10 @@ type TitleSummary struct {
 }
 
 func LoadDef(logger *zap.SugaredLogger, defDir string, discNum int, slug string) (map[string]TitleSummary, error) {
-    // TODO: Check that discNum is greater than 0
+    if discNum < 1 {
+        return nil, fmt.Errorf("Disc Number must be greater than 0, but was %d", discNum)
+    }
+
     var summaryFileName string
     if discNum > 9 {
         summaryFileName = fmt.Sprintf("disc%d-summary.txt", discNum)

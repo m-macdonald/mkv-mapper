@@ -1,21 +1,32 @@
 package lines
 
-type ParsedLine interface {}
+type ParsedLine interface {
+    // OriginalText() string
+}
 
 type Message struct {
-    Code        string
-    Flags       int
-    Count       int
-    Message     string
-    Format      string
-    Params      []string
-    OriginalMessage string
+    Code            string
+    Flags           int
+    Count           int
+    Message         string
+    Format          string
+    Params          []string
+    originalText    string
+}
+
+func (m Message) OriginalText() string {
+    return m.originalText
 }
 
 type ProgressTitle struct {
-    Code        string
-    Id          int
-    Name        string
+    Code            string
+    Id              int
+    Name            string
+    originalText    string
+}
+
+func (p ProgressTitle) OriginalText() string {
+    return p.originalText
 }
 
 type ProgressCurrent struct {
@@ -46,14 +57,14 @@ type TitleCount struct {
 }
 
 // Messages in the format 
-type DiscInformation struct {
+type DiscInfo struct {
     // Attribute id
     Id          int
     Code        int
     Value       string
 }
 
-type TitleInformation struct {
+type TitleInfo struct {
     // Attribute id
     Id          int
     Code        int
@@ -61,7 +72,7 @@ type TitleInformation struct {
 }
 
 // Messages in the format 
-type StreamInformation struct {
+type StreamInfo struct {
     // Attribute id
     Id          int
     Code        int
