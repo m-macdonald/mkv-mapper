@@ -64,10 +64,22 @@ type DiscInfo struct {
     Value       string
 }
 
+type TitleInfoCode int
+
+const (
+	Size TitleInfoCode = 11
+)
+
+var TitleInfoCodeEnum = struct {
+	Size TitleInfoCode
+}{
+	Size: 11,
+}
+
 type TitleInfo struct {
     // Attribute id
     Id          int
-    Code        int
+    Code        TitleInfoCode
     Value       string
 }
 

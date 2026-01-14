@@ -39,7 +39,7 @@ func Execute() {
 	}
 }
 
-var defaultCfgFile = "$HOME/.config/mkv-mapper.json"
+var defaultCfgFile = "$HOME/.config/mkv-mapper/config.json"
 
 var debug bool
 var cfgFile string

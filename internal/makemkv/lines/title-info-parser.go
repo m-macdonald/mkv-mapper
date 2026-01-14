@@ -25,11 +25,13 @@ func (t TitleInfoParser) Parse(lineText string) ParsedLine {
         //error handling
     }
 
-    if code, err := strconv.Atoi(params[1]); err == nil {
-        titleInfo.Code = code
-    } else {
-        //error handling
-    }
+ //    if code, err := strconv.Atoi(params[1]); err == nil {
+ //        titleInfo.Code = code
+ //    } else {
+ //        //error handling
+ //    }
+	//
+	// if code == TitleInfoCodeEnum.Size {}
 
     titleInfo.Value = params[2]
 

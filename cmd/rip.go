@@ -36,6 +36,8 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// ripCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// TODO: Option to rip a backup that was taken previously
+	ripCmd.Flags().String("backup", "", "")
 	ripCmd.Flags().Int("drive", 1, "The number of your optical drive as defined by makemkv (default is 0)")
     ripCmd.Flags().String("slug", "", "The slug of the disc as defined in TheDiscDB")
     // TODO: Consolidate Viper configuration
