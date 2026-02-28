@@ -7,17 +7,11 @@ import (
 
 type DiscInfoParser struct {}
 
-func (d DiscInfoParser) prefix() string {
-    return "CINFO:"
-}
-
-func (d DiscInfoParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, d.prefix())
-}
-
-func (t DiscInfoParser) Parse(lineText string) ParsedLine {
+func (t DiscInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
     discInfo := DiscInfo {}
-    params := strings.Split(lineText, COMMA)
+	discInfo.raw = raw
+
+    params := strings.Split(payload, COMMA)
 
     if id, err := strconv.Atoi(params[0]); err == nil {
         discInfo.Id = id
@@ -33,7 +27,7 @@ func (t DiscInfoParser) Parse(lineText string) ParsedLine {
 
     discInfo.Value = params[2]
 
-    return discInfo
+    return discInfo, nil
 }
 
 

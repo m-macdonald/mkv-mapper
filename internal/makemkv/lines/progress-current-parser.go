@@ -7,25 +7,19 @@ import (
 
 type ProgressCurrentParser struct {}
 
-func (p ProgressCurrentParser) prefix() string {
-    return "PRGC:"
-}
-
-func (p ProgressCurrentParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, p.prefix())
-}
-
-func (p ProgressCurrentParser) Parse(lineText string) ParsedLine {
+func (p ProgressCurrentParser) Parse(raw string, payload string) (ParsedLine, error) {
     progressCurrent := ProgressCurrent {}
-    params := strings.Split(lineText, COMMA)
+	progressCurrent.raw = raw
 
-    progressCurrent.Code = params[1]
-    if id, err := strconv.Atoi(params[2]); err == nil {
+    params := strings.Split(payload, COMMA)
+
+    progressCurrent.Code = params[0]
+    if id, err := strconv.Atoi(params[1]); err == nil {
         progressCurrent.Id = id
     } else {
 
     }
-    progressCurrent.Name = params[3]
+    progressCurrent.Name = params[2]
 
-    return progressCurrent
+    return progressCurrent, nil
 }

@@ -7,21 +7,19 @@ import (
 
 type DriveScanParser struct {}
 
-func (d DriveScanParser) prefix() string {
-    return "DRV:"
-}
-
-func (d DriveScanParser) Parse(lineText string) ParsedLine {
+func (d DriveScanParser) Parse(raw string, payload string) (ParsedLine, error) {
     driveScan := DriveScan {}
-    params := strings.Split(lineText, COMMA)
+	driveScan.raw = raw
 
-    if index, err := strconv.Atoi(params[1]); err == nil {
+    params := strings.Split(payload, COMMA)
+
+    if index, err := strconv.Atoi(params[0]); err == nil {
         driveScan.Index = index
     } else {
         // error handling
     }
 
-    if visible, err := strconv.Atoi(params[2]); err == nil {
+    if visible, err := strconv.Atoi(params[1]); err == nil {
         if (visible == 1) {
             driveScan.Visible = true
         } else {
@@ -31,7 +29,7 @@ func (d DriveScanParser) Parse(lineText string) ParsedLine {
         // error handling
     }
 
-    if enabled, err := strconv.Atoi(params[3]); err == nil {
+    if enabled, err := strconv.Atoi(params[2]); err == nil {
         if enabled == 1 {
             driveScan.Enabled = true
         } else {
@@ -41,13 +39,5 @@ func (d DriveScanParser) Parse(lineText string) ParsedLine {
         // error handling
     }
 
-    
-
-
-
-    return driveScan
-}
-
-func (d DriveScanParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, d.prefix())
+    return driveScan, nil
 }

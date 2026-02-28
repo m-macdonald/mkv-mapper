@@ -7,25 +7,19 @@ import (
 
 type ProgressTitleParser struct {}
 
-func (p ProgressTitleParser) prefix() string {
-    return "PRGT:"
-}
-
-func (p ProgressTitleParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, p.prefix())
-}
-
-func (p ProgressTitleParser) Parse(lineText string) ParsedLine {
+func (p ProgressTitleParser) Parse(raw string, payload string) (ParsedLine, error) {
     progressTitle := ProgressTitle {}
-    params := strings.Split(lineText, COMMA)
+	progressTitle.raw = raw
 
-    progressTitle.Code = params[1]
-    if id, err := strconv.Atoi(params[2]); err == nil {
+    params := strings.Split(payload, COMMA)
+
+    progressTitle.Code = params[0]
+    if id, err := strconv.Atoi(params[1]); err == nil {
         progressTitle.Id = id
     } else {
 
     }
-    progressTitle.Name = params[3]
+    progressTitle.Name = params[2]
 
-    return progressTitle
+    return progressTitle, nil
 }

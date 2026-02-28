@@ -1,43 +1,47 @@
 package lines
 
 import (
-    "fmt"
+	"fmt"
+	"strings"
 )
 
 const (
-    COMMA = ","
+	COMMA = ","
 )
 
 type LineProcessor struct {
-    parsers []LineParser
+	parsers map[string]LineParser
 }
 
 func NewLineProcessor() *LineProcessor {
-    return &LineProcessor {
-        parsers: []LineParser {
-            MessageParser {},
-            ProgressCurrentParser {},
-            ProgressTitleParser {},
-            DriveScanParser {},
-            ProgressTitleParser {},
-            StreamInfoParser {},
-            TitleCountParser {},
-            TitleInfoParser {},
-        },
-    }
+	return &LineProcessor{
+		parsers: map[string]LineParser{
+			"MSG":    MessageParser{},
+			"PRGC":   ProgressCurrentParser{},
+			"PRGT":   ProgressTitleParser{},
+			"DRV":    DriveScanParser{},
+			"SINFO":  StreamInfoParser{},
+			"TCOUNT": TitleCountParser{},
+			"TINFO":  TitleInfoParser{},
+			"CINFO":  DiscInfoParser{},
+		},
+	}
 }
 
 func (p *LineProcessor) ProcessLine(line string) (ParsedLine, error) {
-    for _, parser := range p.parsers {
-        if parser.CanParse(line) {
-            return parser.Parse(line), nil
-        }
-    }
+	prefix, payload, ok := strings.Cut(line, ":")
+	if !ok {
+		return nil, fmt.Errorf("invalid line: %s", line)
+	}
 
-    return nil, fmt.Errorf("No parser available for line: %s", line)
+	parser, exists := p.parsers[prefix]
+	if !exists {
+		return nil, fmt.Errorf("no parser for prefix: %s", prefix)
+	}
+
+	return parser.Parse(line, payload)
 }
 
 type LineParser interface {
-    Parse(lineText string) ParsedLine
-    CanParse(lineText string) bool
+	Parse(raw string, payload string) (ParsedLine, error)
 }

@@ -1,92 +1,114 @@
 package lines
 
 type ParsedLine interface {
-    // OriginalText() string
+	isParsedLine()
+	Raw() string
+}
+
+type parsedLineBase struct {
+	raw string
+}
+
+func (r parsedLineBase) Raw() string {
+	return r.raw
 }
 
 type Message struct {
-    Code            string
-    Flags           int
-    Count           int
-    Message         string
-    Format          string
-    Params          []string
-    originalText    string
+	parsedLineBase
+	Code         string
+	Flags        int
+	Count        int
+	Message      string
+	Format       string
+	Params       []string
+	originalText string
 }
 
-func (m Message) OriginalText() string {
-    return m.originalText
-}
+func (Message) isParsedLine() {}
 
 type ProgressTitle struct {
-    Code            string
-    Id              int
-    Name            string
-    originalText    string
+	parsedLineBase
+	Code         string
+	Id           int
+	Name         string
+	originalText string
 }
 
-func (p ProgressTitle) OriginalText() string {
-    return p.originalText
-}
+func (ProgressTitle) isParsedLine() {}
 
 type ProgressCurrent struct {
-    Code        string
-    Id          int
-    Name        string
+	parsedLineBase
+	Code string
+	Id   int
+	Name string
 }
+
+func (ProgressCurrent) isParsedLine() {}
 
 type ProgressValue struct {
-    Current     int
-    Total       int
-    Max         int
+	parsedLineBase
+	Current int
+	Total   int
+	Max     int
 }
 
+func (ProgressValue) isParsedLine() {}
+
 type DriveScan struct {
-    Index       int
-    Visible     bool
-    Enabled     bool
-    Flags       int
-    DriveName   string
-    DiscName    string
+	parsedLineBase
+	Index     int
+	Visible   bool
+	Enabled   bool
+	Flags     int
+	DriveName string
+	DiscName  string
 }
+
+func (DriveScan) isParsedLine() {}
 
 // Messages in the format TCOUT:count
 type TitleCount struct {
-    // Title count
-    Count       int
+	parsedLineBase
+	// Title count
+	Count int
 }
 
-// Messages in the format 
+func (TitleCount) isParsedLine() {}
+
+// Messages in the format
 type DiscInfo struct {
-    // Attribute id
-    Id          int
-    Code        int
-    Value       string
+	parsedLineBase
+	// Attribute id
+	Id    int
+	Code  int
+	Value string
 }
 
-type TitleInfoCode int
+func (DiscInfo) isParsedLine() {}
+
+type TitleInfoCode uint
 
 const (
-	Size TitleInfoCode = 11
+	TitleInfoCodeSize TitleInfoCode = 11
 )
 
-var TitleInfoCodeEnum = struct {
-	Size TitleInfoCode
-}{
-	Size: 11,
-}
-
 type TitleInfo struct {
-    // Attribute id
-    Id          int
-    Code        TitleInfoCode
-    Value       string
+	parsedLineBase
+	TitleId     uint
+	AttributeId TitleInfoCode
+	Code        uint
+	Value       string
 }
 
-// Messages in the format 
+func (TitleInfo) isParsedLine() {}
+
+// Messages in the format
 type StreamInfo struct {
-    // Attribute id
-    Id          int
-    Code        int
-    Value       string
+	parsedLineBase
+	// Attribute id
+	Id    int
+	Code  int
+	Value string
 }
+
+func (StreamInfo) isParsedLine() {}

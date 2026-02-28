@@ -8,11 +8,7 @@ import (
 
 type Config struct {
     MakeMkvPath     string
-    DiscDbDefs      string
-    DriveNum        int
     MkvDest         string
-    Disc            int
-    Slug            string
 }
 
 func Load() (Config, error) {

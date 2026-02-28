@@ -1,40 +1,45 @@
 package lines
 
 import (
-    "strings"
-    "strconv"
+	"encoding/csv"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
 type TitleInfoParser struct {}
 
-func (t TitleInfoParser) prefix() string {
-    return "TINFO:"
-}
-
-func (d TitleInfoParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, d.prefix())
-}
-
-func (t TitleInfoParser) Parse(lineText string) ParsedLine {
+func (t TitleInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
     titleInfo := TitleInfo {}
-    params := strings.Split(lineText, COMMA)
+	titleInfo.raw = raw
 
-    if id, err := strconv.Atoi(params[0]); err == nil {
-        titleInfo.Id = id
+	r := csv.NewReader(strings.NewReader(payload))
+	r.LazyQuotes = true
+	params, err := r.Read()
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse line payload %w", err)
+	}
+    // params := strings.Split(payload, COMMA)
+
+    if titleId, err := strconv.ParseUint(params[0], 10, 0); err == nil {
+        titleInfo.TitleId = uint(titleId)
     } else {
         //error handling
     }
 
- //    if code, err := strconv.Atoi(params[1]); err == nil {
- //        titleInfo.Code = code
- //    } else {
- //        //error handling
- //    }
-	//
-	// if code == TitleInfoCodeEnum.Size {}
+	if attributeId, err := strconv.ParseUint(params[1], 10, 0); err == nil {
+		titleInfo.AttributeId = TitleInfoCode(attributeId) 
+	} else {
+		// error handling
+	}
 
-    titleInfo.Value = params[2]
+    if code, err := strconv.ParseUint(params[2], 10, 0); err == nil {
+        titleInfo.Code = uint(code)
+    } else {
+        //error handling
+    }
 
-    return titleInfo
+    titleInfo.Value = params[3]
+
+    return titleInfo, nil
 }
-

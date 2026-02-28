@@ -1,16 +1,23 @@
 package mapper
 
 import (
+	"crypto/md5"
+	"encoding/binary"
+	"fmt"
+	"m-macdonald/mkv-mapper/internal/common"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"os"
-	"path"
+	"path/filepath"
+	"strings"
+
+	"go.uber.org/zap"
 )
 
 func Map(fileDir string, mappings map[string]discdb.TitleSummary) []error {
     errors := []error {};
     for fileName, titleSummary := range mappings {
-        srcFilePath := path.Join(fileDir, fileName)
-        destFilePath := path.Join(fileDir, titleSummary.Name)
+        srcFilePath := filepath.Join(fileDir, fileName)
+        destFilePath := filepath.Join(fileDir, titleSummary.Name)
         
         err := os.Rename(srcFilePath, destFilePath)
 

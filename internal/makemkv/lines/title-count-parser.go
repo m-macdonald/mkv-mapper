@@ -7,25 +7,17 @@ import (
 
 type TitleCountParser struct {}
 
-func (t TitleCountParser) prefix() string {
-    return "TCOUT:"
-}
-
-func (t TitleCountParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, t.prefix())
-}
-
-func (t TitleCountParser) Parse(lineText string) ParsedLine {
+func (t TitleCountParser) Parse(raw string, payload string) (ParsedLine, error) {
     titleCount := TitleCount {}
-    params := strings.Split(lineText, COMMA)
+    params := strings.Split(payload, COMMA)
 
-    if count, err := strconv.Atoi(params[1]); err == nil {
+    if count, err := strconv.Atoi(params[0]); err == nil {
         titleCount.Count = count
     } else {
         //error handling
     }
 
-    return titleCount
+    return titleCount, nil
 }
 
 

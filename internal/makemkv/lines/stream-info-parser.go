@@ -7,17 +7,11 @@ import (
 
 type StreamInfoParser struct {}
 
-func (s StreamInfoParser) prefix() string {
-    return "SINFO:"
-}
-
-func (s StreamInfoParser) CanParse(lineText string) bool {
-    return strings.HasPrefix(lineText, s.prefix())
-}
-
-func (s StreamInfoParser) Parse(lineText string) ParsedLine {
+func (s StreamInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
     streamInfo := StreamInfo {}
-    params := strings.Split(lineText, COMMA)
+	streamInfo.raw = raw
+
+    params := strings.Split(payload, COMMA)
 
     if id, err := strconv.Atoi(params[0]); err == nil {
         streamInfo.Id = id
@@ -33,5 +27,5 @@ func (s StreamInfoParser) Parse(lineText string) ParsedLine {
 
     streamInfo.Value = params[2]
 
-    return streamInfo
+    return streamInfo, nil
 }
