@@ -5,9 +5,22 @@ import (
     "strconv"
 )
 
+type Message struct {
+	parsedLineBase
+	Code         string
+	Flags        int
+	Count        int
+	Message      string
+	Format       string
+	Params       []string
+	originalText string
+}
+
+func (Message) isParsedLine() {}
+
 type MessageParser struct {}
 
-func (m MessageParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (m *MessageParser) Parse(raw string, payload string) (ParsedLine, error) {
     message := Message {}
 	message.raw = raw
 

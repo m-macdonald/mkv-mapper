@@ -5,9 +5,18 @@ import (
     "strconv"
 )
 
+type ProgressCurrent struct {
+	parsedLineBase
+	Code string
+	Id   int
+	Name string
+}
+
+func (ProgressCurrent) isParsedLine() {}
+
 type ProgressCurrentParser struct {}
 
-func (p ProgressCurrentParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (p *ProgressCurrentParser) Parse(raw string, payload string) (ParsedLine, error) {
     progressCurrent := ProgressCurrent {}
 	progressCurrent.raw = raw
 

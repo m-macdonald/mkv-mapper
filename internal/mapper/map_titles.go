@@ -8,6 +8,11 @@ import (
 	"path/filepath"
 )
 
+type TitleMapping struct {
+	OutputFileName string
+	DiscDbTitle discdb.Title
+}
+
 func RenameTitles(sourceDir string, destDir string, disc *discdb.Disc, mappings map[string]discdb.Title) []error {
     errors := []error {};
     for fileName, title := range mappings {
@@ -26,11 +31,6 @@ func RenameTitles(sourceDir string, destDir string, disc *discdb.Disc, mappings 
     }
 
     return nil
-}
-
-type TitleMapping struct {
-	OutputFileName string
-	DiscDbTitle discdb.Title
 }
 
 func MapTitles(discDbDisc *discdb.Disc, makeMkvOutputFilesBySegmentSignature map[signature.SegmentSignature]string) (map[string]discdb.Title, error) {

@@ -5,9 +5,18 @@ import (
     "strconv"
 )
 
+// Messages in the format TCOUT:count
+type TitleCount struct {
+	parsedLineBase
+	// Title count
+	Count int
+}
+
+func (TitleCount) isParsedLine() {}
+
 type TitleCountParser struct {}
 
-func (t TitleCountParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (t *TitleCountParser) Parse(raw string, payload string) (ParsedLine, error) {
     titleCount := TitleCount {}
     params := strings.Split(payload, COMMA)
 

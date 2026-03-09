@@ -5,9 +5,21 @@ import (
     "strconv"
 )
 
+type DriveScan struct {
+	parsedLineBase
+	Index     int
+	Visible   bool
+	Enabled   bool
+	Flags     int
+	DriveName string
+	DiscName  string
+}
+
+func (DriveScan) isParsedLine() {}
+
 type DriveScanParser struct {}
 
-func (d DriveScanParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (d *DriveScanParser) Parse(raw string, payload string) (ParsedLine, error) {
     driveScan := DriveScan {}
 	driveScan.raw = raw
 

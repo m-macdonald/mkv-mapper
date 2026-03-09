@@ -7,9 +7,28 @@ import (
 	"strings"
 )
 
+type TitleInfoCode uint
+
+const (
+	TitleInfoCodeSize           TitleInfoCode = 11
+	TitleInfoCodeSourceFileName TitleInfoCode = 16
+	TitleInfoCodeOutputFileName TitleInfoCode = 27
+	TitleInfoCodeSegmentsMap    TitleInfoCode = 26
+)
+
+type TitleInfo struct {
+	parsedLineBase
+	TitleId     uint
+	AttributeId TitleInfoCode
+	Code        uint
+	Value       string
+}
+
+func (TitleInfo) isParsedLine() {}
+
 type TitleInfoParser struct {}
 
-func (t TitleInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (t *TitleInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
     titleInfo := TitleInfo {}
 	titleInfo.raw = raw
 

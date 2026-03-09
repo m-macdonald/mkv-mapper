@@ -5,9 +5,20 @@ import (
     "strconv"
 )
 
+// Messages in the format
+type StreamInfo struct {
+	parsedLineBase
+	// Attribute id
+	Id    int
+	Code  int
+	Value string
+}
+
+func (StreamInfo) isParsedLine() {}
+
 type StreamInfoParser struct {}
 
-func (s StreamInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (s *StreamInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
     streamInfo := StreamInfo {}
 	streamInfo.raw = raw
 

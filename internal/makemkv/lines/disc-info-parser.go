@@ -5,9 +5,20 @@ import (
     "strconv"
 )
 
+// Messages in the format
+type DiscInfo struct {
+	parsedLineBase
+	// Attribute id
+	Id    int
+	Code  int
+	Value string
+}
+
+func (DiscInfo) isParsedLine() {}
+
 type DiscInfoParser struct {}
 
-func (t DiscInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (d *DiscInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
     discInfo := DiscInfo {}
 	discInfo.raw = raw
 
