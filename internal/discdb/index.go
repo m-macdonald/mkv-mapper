@@ -15,20 +15,6 @@ import (
 
 const DiscDbRepo = "https://github.com/TheDiscDb/data.git"
 
-type TitleSummary struct {
-	Name           string
-	SourceFileName string
-	Duration       string
-	ChaptersCount  string
-	Size           string
-	SegmentCount   string
-	SegmentMap     string
-	Type           string
-	Season         string
-	Episode        string
-	FileName       string
-}
-
 type Disc struct {
 	Index       int     `json:"Index"`
 	Slug        string  `json:"Slug"`
@@ -107,7 +93,7 @@ func cloneRepo() error {
 		_, err := git.PlainClone(os.TempDir(), false, &git.CloneOptions{
 			URL:      DiscDbRepo,
 			Progress: os.Stdout,
-			Depth: 1,
+			Depth:    1,
 		})
 
 		return err
@@ -127,7 +113,7 @@ func collectDiscs(discRecordChan chan Disc) error {
 	defer close(discRecordChan)
 
 	return filepath.WalkDir(
-		os.TempDir() + "/data", 
+		os.TempDir()+"/data",
 		func(path string, d os.DirEntry, err error) error {
 			if d.IsDir() ||
 				!(strings.HasPrefix(d.Name(), "disc") &&
@@ -151,4 +137,3 @@ func collectDiscs(discRecordChan chan Disc) error {
 			return nil
 		})
 }
-

@@ -6,8 +6,16 @@ import (
 	"errors"
 
 	_ "github.com/mattn/go-sqlite3"
-	"go.uber.org/zap"
+	// "go.uber.org/zap"
 )
+
+type Client struct {
+	// logger zap.SugaredLogger
+}
+
+func NewClient() *Client {
+	return &Client{}
+}
 
 func (d *Disc) Scan(value any) error {
 	b, ok := value.([]byte)
@@ -18,7 +26,7 @@ func (d *Disc) Scan(value any) error {
 	return json.Unmarshal(b, &d)
 }
 
-func GetDisc(discHash string) (*Disc, error) {
+func (c *Client) GetDisc(discHash string) (*Disc, error) {
 	db, err := sql.Open("sqlite3", "testing/disc.db")
 	if err != nil {
 		return nil, err

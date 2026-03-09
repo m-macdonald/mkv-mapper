@@ -89,7 +89,10 @@ func (DiscInfo) isParsedLine() {}
 type TitleInfoCode uint
 
 const (
-	TitleInfoCodeSize TitleInfoCode = 11
+	TitleInfoCodeSize           TitleInfoCode = 11
+	TitleInfoCodeSourceFileName TitleInfoCode = 16
+	TitleInfoCodeOutputFileName TitleInfoCode = 27
+	TitleInfoCodeSegmentsMap    TitleInfoCode = 26
 )
 
 type TitleInfo struct {

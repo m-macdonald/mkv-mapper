@@ -1,33 +1,15 @@
 package config
 
-import (
-    "fmt"
-
-    "github.com/spf13/viper"
+const (
+	DiscRoot    = "discRoot"
+	LogLevel    = "logLevel"
+	MakeMkvPath = "makemkvPath"
+	OutputDir   = "outputDir"
 )
 
 type Config struct {
-    MakeMkvPath     string
-    MkvDest         string
-}
-
-func Load() (Config, error) {
-    cfgFile := viper.GetString("config")
-    fmt.Printf("%s", cfgFile)
-    viper.SetConfigFile(cfgFile)
-    err := viper.ReadInConfig()
-    if err != nil {
-        fmt.Printf("%s", err)
-    }
-    for key, setting := range viper.AllSettings() {
-        fmt.Printf("%s: %v\n", key, setting)
-    }
-    
-    var config Config
-    err = viper.Unmarshal(&config)
-    if err != nil {
-        fmt.Printf("%s", err)
-    }
-
-    return config, nil
+	DiscRoot    string `mapstructure:"discRoot"`
+	LogLevel    string `mapstructure:"logLevel"`
+	MakeMkvPath string `mapstructure:"makemkvPath"`
+	OutputDir   string `mapstructure:"outputDir"`
 }

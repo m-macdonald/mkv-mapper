@@ -3,77 +3,83 @@ package makemkv
 import (
 	"bufio"
 	"context"
-	"crypto/md5"
-	"encoding/binary"
 	"fmt"
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"os"
 	"os/exec"
-	"regexp"
-	"strconv"
-	"strings"
+
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/signature"
 
 	"go.uber.org/zap"
 )
 
-
-var titleParser = regexp.MustCompile(`(.*):\d+,(\d+),\d+,"(.*)"`)
-
-type cmdResult struct {
-    Line    lines.ParsedLine
-    Error   error
+type Client struct {
+	makeMkvPath string
+	logger      *zap.SugaredLogger
 }
 
-func runCmd(ctx context.Context, makeMkvPath string, arg ...string) <-chan cmdResult {
-    lineProcessor := lines.NewLineProcessor()
+func NewClient(makeMkvPath string, logger *zap.SugaredLogger) *Client {
+	return &Client{
+		makeMkvPath: makeMkvPath,
+		logger:      logger,
+	}
+}
+
+type cmdResult struct {
+	Line  lines.ParsedLine
+	Error error
+}
+
+func (c *Client) runCmd(ctx context.Context, arg ...string) <-chan cmdResult {
+	lineProcessor := lines.NewLineProcessor()
 	// TODO: Fix magic number
-    resultChan := make(chan cmdResult, 32)
+	resultChan := make(chan cmdResult, 32)
 
-    go func() {
-        defer close(resultChan)
-        cmd := exec.CommandContext(ctx, makeMkvPath, arg...)
+	go func() {
+		defer close(resultChan)
+		cmd := exec.CommandContext(ctx, c.makeMkvPath, arg...)
 		cmd.Stderr = os.Stderr
-        stdOutPipe, err := cmd.StdoutPipe()
-        if err != nil {
-            sugaredError := fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
-            resultChan <- cmdResult{Error: sugaredError}
+		stdOutPipe, err := cmd.StdoutPipe()
+		if err != nil {
+			sugaredError := fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
+			resultChan <- cmdResult{Error: sugaredError}
 
-            return
-        }
-        if err = cmd.Start(); err != nil {
-            resultChan <- cmdResult{Error: err}
+			return
+		}
+		if err = cmd.Start(); err != nil {
+			resultChan <- cmdResult{Error: err}
 
-            return
-        }
+			return
+		}
 
-        scanner := bufio.NewScanner(stdOutPipe)
-        for scanner.Scan() {
-            parsedLine, err := lineProcessor.ProcessLine(scanner.Text())
+		scanner := bufio.NewScanner(stdOutPipe)
+		for scanner.Scan() {
+			parsedLine, err := lineProcessor.ProcessLine(scanner.Text())
 
 			result := cmdResult{Line: parsedLine, Error: err}
-			
+
 			select {
 			case resultChan <- result:
 			case <-ctx.Done():
 				return
 			}
-        }
+		}
 		if err := scanner.Err(); err != nil {
 			resultChan <- cmdResult{Error: err}
 			return
 		}
-        if err := cmd.Wait(); err != nil {
-            resultChan <- cmdResult{Error: err}
-        }
-    }()
+		if err := cmd.Wait(); err != nil {
+			resultChan <- cmdResult{Error: err}
+		}
+	}()
 
-    return resultChan
+	return resultChan
 }
 
-func getDiscInfo(logger *zap.SugaredLogger, makeMkvPath string) ([]lines.ParsedLine, error) {
+func (c *Client) getDiscInfo() ([]lines.ParsedLine, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resultChan := runCmd(ctx, makeMkvPath, "--minlength=0", "--robot", "info", "/home/maddux/Videos/backup/BLACK_SAILS_DISC1/BDMV/index.bdmv")
+	resultChan := c.runCmd(ctx, "--minlength=0", "--robot", "info", "/home/maddux/Videos/backup/BLACK_SAILS_DISC1/BDMV/index.bdmv")
 
 	var parsedLines []lines.ParsedLine
 	for line := range resultChan {
@@ -88,112 +94,91 @@ func getDiscInfo(logger *zap.SugaredLogger, makeMkvPath string) ([]lines.ParsedL
 	return parsedLines, nil
 }
 
-func GetDiscHash(logger *zap.SugaredLogger, makeMkvPath string) (string, error) {
-	logger.Debugln("Starting disc hash")
-
-
-	discLines, err := getDiscInfo(logger, makeMkvPath)
-	if err != nil {
-		return "", err
-	}
-
-	hash := md5.New()
-
-	for _, line := range discLines {
-		logger.Infoln(line)
-
-		titleInfo, ok := line.(lines.TitleInfo)
-		if !ok {
-			continue
-		}
-
-		if titleInfo.AttributeId != lines.TitleInfoCodeSize {
-			continue
-		}
-		
-		// logger.Infoln(titleInfo.Raw())
-		// logger.Infoln(titleInfo.Value)
-
-		size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
-		if err != nil {
-			return "", err
-		}
-
-		logger.Debugf("Determined title size of: %d\n", size)
-		bs := make([]byte, 8)
-		binary.LittleEndian.PutUint64(bs, size)
-		hash.Write(bs)
-	}
-
-	hashString := strings.ToUpper(fmt.Sprintf("%x", hash.Sum(nil)))
-	
-	logger.Debugf("Determined hash string: %s\n", hashString)
-	return hashString, nil
-}
-
-func RipDisc(logger *zap.SugaredLogger, makeMkvPath string, opticalDriveNum int, destDir string) error {
+func (c *Client) RipDisc() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-    resultChan := runCmd(ctx, makeMkvPath, "mkv", fmt.Sprintf("disc:%d", opticalDriveNum), "all", destDir, "--robot")
+	resultChan := c.runCmd(ctx, "mkv", "all", "destDir", "--robot")
 
-    for result := range resultChan {
-        if result.Error != nil {
-            logger.Error(result.Error)
-        } else if result.Line != nil {
-            // Do nothing with it yet
-        }
-    }
+	for result := range resultChan {
+		if result.Error != nil {
+			c.logger.Error(result.Error)
+		} else if result.Line != nil {
+			// Do nothing with it yet
+		}
+	}
 
+	// cmd := exec.Command(makeMkvPath, "mkv", fmt.Sprintf("disc:%d", opticalDriveNum), "all", destDir, "--robot")
+	// stdOutPipe, err := cmd.StdoutPipe()
+	// if err != nil {
+	//     return fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
+	// }
+	// if err = cmd.Start(); err != nil {
+	//     return fmt.Errorf("Failed to start ", err)
+	// }
+	//
+	// scanner := bufio.NewScanner(stdOutPipe)
+	// for scanner.Scan() {
+	//     nextLine(logger, scanner)
+	// }
+	//
+	// if err = cmd.Wait(); err != nil {
+	//     return err
+	// }
 
-    // cmd := exec.Command(makeMkvPath, "mkv", fmt.Sprintf("disc:%d", opticalDriveNum), "all", destDir, "--robot")
-    // stdOutPipe, err := cmd.StdoutPipe()
-    // if err != nil {
-    //     return fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
-    // }
-    // if err = cmd.Start(); err != nil {
-    //     return fmt.Errorf("Failed to start ", err)
-    // }
-    //
-    // scanner := bufio.NewScanner(stdOutPipe)
-    // for scanner.Scan() {
-    //     nextLine(logger, scanner)
-    // }
-    // 
-    // if err = cmd.Wait(); err != nil {
-    //     return err
-    // }
-    
-    return nil
+	return nil
 }
 
-func ReadTitles(makeMkvPath string) (map[string]string, error) {
-    // resultChan := runCmd(makeMkvPath, "info", fmt.Sprintf("disc:%d", opticalDriveNum), "--robot")
+type makeMkvTitle struct {
+	SourceFileName   string
+	OutputFileName   string
+	SegmentSignature signature.SegmentSignature
+}
+
+func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]string, error) {
+	// resultChan := runCmd(makeMkvPath, "info", fmt.Sprintf("disc:%d", opticalDriveNum), "--robot")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-    resultChan := runCmd(ctx, makeMkvPath, "info", "~/Videos/backup/BLACK_SAILS_DISC1/BDMV/index.bdmv", "--robot")
-    titles := make(map[string]string)
+	resultChan := c.runCmd(ctx, "info", "/home/maddux/Videos/backup/BLACK_SAILS_DISC1/BDMV/index.bdmv", "--robot")
+	titles := make(map[uint]makeMkvTitle)
 
-    // var mplsName string
+	for result := range resultChan {
+		if result.Error != nil {
+			return nil, result.Error
+		} else if result.Line != nil {
+			parsedLine := result.Line
 
-    for result := range resultChan {
-        if result.Error != nil {
-            logger.Error(result.Error)
-        } else if result.Line != nil {
-            parsedLine := result.Line
-            logger.Debugln(parsedLine)
-			// TODO: Fix this
-            // switch t := parsedLine.(type) {
-            // case lines.TitleInfo:
-            //     if t.Code == 16 {
-            //         mplsName = t.Value
-            //     } else if t.Code == 27 {
-            //         titles[mplsName] = t.Value
-            //     }
-            // }
-        }
-    }
+			titleInfo, ok := parsedLine.(lines.TitleInfo)
+			if !ok {
+				continue
+			}
 
-	logger.Infoln("Title read complete")
+			titleFileNames, ok := titles[titleInfo.TitleId]
+			if !ok {
+				titleFileNames = makeMkvTitle{}
+			}
 
-    return titles, nil
+			switch titleInfo.AttributeId {
+			case lines.TitleInfoCodeSourceFileName:
+				titleFileNames.SourceFileName = titleInfo.Value
+			case lines.TitleInfoCodeOutputFileName:
+				titleFileNames.OutputFileName = titleInfo.Value
+			case lines.TitleInfoCodeSegmentsMap:
+				segmentSignature, err := signature.NormalizeSegments(titleInfo.Value)
+				if err != nil ||
+					segmentSignature == "" {
+					// continue if we can't parse?
+				} else {
+					titleFileNames.SegmentSignature = segmentSignature
+				}
+			}
+			titles[titleInfo.TitleId] = titleFileNames
+		}
+	}
+
+	t := make(map[signature.SegmentSignature]string)
+	for _, v := range titles {
+		t[v.SegmentSignature] = v.OutputFileName
+	}
+
+	return t, nil
 }
