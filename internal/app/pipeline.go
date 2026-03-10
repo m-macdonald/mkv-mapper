@@ -6,6 +6,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/planner"
 
 	"go.uber.org/zap"
@@ -29,11 +30,14 @@ func New(
 	}
 }
 
-func (p *Pipeline) BuildPlan(discRoot string) (*planner.DiscPlan, error) {
+func (p *Pipeline) BuildPlan(discRoot string, outputDir string) (*planner.DiscPlan, error) {
 	root, err := files.ResolveDiscRoot(discRoot)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find disc root %w", err)
 	}
+	// if isValid := fs.ValidPath(outputDir); !isValid {
+	// 	return nil, fmt.Errorf("the given outputDir is invalid: %s", outputDir)	
+	// }
 	hash, err := files.Hash(root)
 	if err != nil {
 		return nil, fmt.Errorf("unable to hash disc %w", err)
@@ -49,7 +53,7 @@ func (p *Pipeline) BuildPlan(discRoot string) (*planner.DiscPlan, error) {
 		return nil, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
 
-	plan, err := planner.BuildPlan(disc, titles)
+	plan, err := planner.BuildPlan(root, outputDir, disc, titles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct a plan for ripping the disc %w", err)	
 	}
@@ -57,6 +61,20 @@ func (p *Pipeline) BuildPlan(discRoot string) (*planner.DiscPlan, error) {
 	return plan, nil
 }
 
+func (p *Pipeline) RunPlan(plan *planner.DiscPlan) error {
+	err := p.makemkv.RipDisc(plan.DiscRoot, plan.OutputDir)
+	if err != nil {
+		return err
+	}
+	
+	mappings := make(map[string]string)
+	for _, titlePlan := range plan.Titles {
+		mappings[titlePlan.MakeMkvOutputFile] = titlePlan.FinalName 
+	}
+	errs := mapper.RenameTitles(plan.OutputDir, plan.OutputDir, mappings)
+	if len(errs) != 0 {
+		p.logger.Errorf("%v", errs)
+	}
 
-// func Rip(plan *DiscPlan) error {
-// }
+	return nil
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/signature"
@@ -30,18 +31,19 @@ type cmdResult struct {
 	Error error
 }
 
-func (c *Client) runCmd(ctx context.Context, arg ...string) <-chan cmdResult {
+func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 	lineProcessor := lines.NewLineProcessor()
 	// TODO: Fix magic number
 	resultChan := make(chan cmdResult, 32)
 
 	go func() {
 		defer close(resultChan)
-		cmd := exec.CommandContext(ctx, c.makeMkvPath, arg...)
+		cmd := exec.CommandContext(ctx, c.makeMkvPath, args...)
+		cmd.Stdin = nil
 		cmd.Stderr = os.Stderr
 		stdOutPipe, err := cmd.StdoutPipe()
 		if err != nil {
-			sugaredError := fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
+			sugaredError := fmt.Errorf("failed to establish a StdoutPipe for makemkv: %w", err)
 			resultChan <- cmdResult{Error: sugaredError}
 
 			return
@@ -55,7 +57,7 @@ func (c *Client) runCmd(ctx context.Context, arg ...string) <-chan cmdResult {
 		scanner := bufio.NewScanner(stdOutPipe)
 		for scanner.Scan() {
 			parsedLine, err := lineProcessor.ProcessLine(scanner.Text())
-
+			
 			result := cmdResult{Line: parsedLine, Error: err}
 
 			select {
@@ -76,54 +78,20 @@ func (c *Client) runCmd(ctx context.Context, arg ...string) <-chan cmdResult {
 	return resultChan
 }
 
-func (c *Client) getDiscInfo() ([]lines.ParsedLine, error) {
+func (c *Client) RipDisc(discRoot string, outputDir string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resultChan := c.runCmd(ctx, "--minlength=0", "--robot", "info", "/home/maddux/Videos/backup/BLACK_SAILS_DISC1/BDMV/index.bdmv")
-
-	var parsedLines []lines.ParsedLine
-	for line := range resultChan {
-		if line.Error != nil {
-			cancel()
-			return nil, line.Error
-		}
-
-		parsedLines = append(parsedLines, line.Line)
-	}
-
-	return parsedLines, nil
-}
-
-func (c *Client) RipDisc() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	resultChan := c.runCmd(ctx, "mkv", "all", "destDir", "--robot")
+	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir, "--robot")
 
 	for result := range resultChan {
 		if result.Error != nil {
-			c.logger.Error(result.Error)
-		} else if result.Line != nil {
-			// Do nothing with it yet
+			cancel()
+
+			return result.Error
+		} else {
+			c.logger.Infoln(result.Line.Raw())
 		}
 	}
-
-	// cmd := exec.Command(makeMkvPath, "mkv", fmt.Sprintf("disc:%d", opticalDriveNum), "all", destDir, "--robot")
-	// stdOutPipe, err := cmd.StdoutPipe()
-	// if err != nil {
-	//     return fmt.Errorf("Failed to establish a StdoutPipe for makemkv: %w", err)
-	// }
-	// if err = cmd.Start(); err != nil {
-	//     return fmt.Errorf("Failed to start ", err)
-	// }
-	//
-	// scanner := bufio.NewScanner(stdOutPipe)
-	// for scanner.Scan() {
-	//     nextLine(logger, scanner)
-	// }
-	//
-	// if err = cmd.Wait(); err != nil {
-	//     return err
-	// }
 
 	return nil
 }
@@ -135,10 +103,9 @@ type makeMkvTitle struct {
 }
 
 func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]string, error) {
-	// resultChan := runCmd(makeMkvPath, "info", fmt.Sprintf("disc:%d", opticalDriveNum), "--robot")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resultChan := c.runCmd(ctx, "info", "/home/maddux/Videos/backup/BLACK_SAILS_DISC1/BDMV/index.bdmv", "--robot")
+	resultChan := c.runCmd(ctx, "info", discRoot, "--robot")
 	titles := make(map[uint]makeMkvTitle)
 
 	for result := range resultChan {

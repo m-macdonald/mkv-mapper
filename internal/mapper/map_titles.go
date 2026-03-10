@@ -4,34 +4,7 @@ import (
 	"fmt"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/signature"
-	"os"
-	"path/filepath"
 )
-
-type TitleMapping struct {
-	OutputFileName string
-	DiscDbTitle discdb.Title
-}
-
-func RenameTitles(sourceDir string, destDir string, disc *discdb.Disc, mappings map[string]discdb.Title) []error {
-    errors := []error {};
-    for fileName, title := range mappings {
-        srcFilePath := filepath.Join(sourceDir, fileName)
-        destFilePath := filepath.Join(sourceDir, title.Item.Title)
-        
-        err := os.Rename(srcFilePath, destFilePath)
-
-        if err != nil {
-            errors = append(errors, err)
-        }
-    } 
-
-    if len(errors) > 0 {
-        return errors
-    }
-
-    return nil
-}
 
 func MapTitles(discDbDisc *discdb.Disc, makeMkvOutputFilesBySegmentSignature map[signature.SegmentSignature]string) (map[string]discdb.Title, error) {
     mappings := make(map[string]discdb.Title)
