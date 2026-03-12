@@ -1,0 +1,16 @@
+Problem:
+Some shows seem to be written to their discs in one long concatenation of episodes. 
+Need a way to determine where one episode stops and another begins.
+
+Solutions:
+No matter how I do this there is no way to guarantee I'm picking up the right delimiter. Would want to retain the original .mkv so that manual splitting could be performed if desired.
+Manual splitting. Offer a way for the user to define where the episodes should be split. This would be the most reliable solution and the more I think on it, the more I'm leaning toward having a UI anyway. This would require more manual intervention than I had originally set out for.
+Chapter markers are commonplace, but don't always have the metadata that I would need to be sure of the episode transition
+With anime episodes, it seems common that there's a little teaser at the end of each episode. That teaser is smaller than all other chapters, so I could look for that chapter and split right after it. This observation may not hold true for other shows though. Need to test
+Analyze the file for consistenly similar frames, which might suggest an opening scene. This fails for most shows I would think. Many have a "cold open" of sorts with some of the episode happening before the OP.
+Could compare frames and look for ones with a large difference from the previous. This falls prey to most of the previous issues.
+
+Tangent:
+Shows that are packaged in this way don't seem to exist in TheDiscDB. Might need to go to the TVDB for them. obviously, there is no explicit name mapping to be had for these cases.
+
+

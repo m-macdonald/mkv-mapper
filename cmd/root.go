@@ -6,13 +6,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"m-macdonald/mkv-mapper/internal/config"
 	"os"
+
+	"m-macdonald/mkv-mapper/internal/config"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	// "go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zapcore"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -25,9 +26,7 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	PersistentPreRun: initConfig,
+	PersistentPreRunE: initContext,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -39,9 +38,8 @@ func Execute() {
 	}
 }
 
-var defaultCfgFile = "$HOME/.config/mkv-mapper.json"
+var defaultCfgFile = "$HOME/.config/mkv-mapper/config.json"
 
-var debug bool
 var cfgFile string
 
 func init() {
@@ -49,45 +47,81 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, fmt.Sprintf("config file (default is %s)", defaultCfgFile))
-    rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Pass this flag to output more logging as mkv-mapper works")
-        
-    viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
-    viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, fmt.Sprintf("Path to the config config file (default is %s)", defaultCfgFile))
+	rootCmd.PersistentFlags().String("output-dir", "", "Output directory for ripped files")
+	rootCmd.PersistentFlags().String("disc-root", "", "Disc mount root directory")
+	rootCmd.PersistentFlags().String("log-level", "info", "The level at which we should log any messages. Info is the default and probably does not ned to be changed")
+	rootCmd.PersistentFlags().String("makemkv-path", "makemkvcon", "The location of the makemkvcon binary. Defaults to assuming the binary is already available on the path")
+
+	// viper.BindPFlags(rootCmd.PersistentFlags())
+
+	viper.BindPFlag(config.OutputDir, rootCmd.PersistentFlags().Lookup("output-dir"))
+	viper.BindPFlag(config.DiscRoot, rootCmd.PersistentFlags().Lookup("disc-root"))
+	viper.BindPFlag(config.LogLevel, rootCmd.PersistentFlags().Lookup("log-level"))
+	viper.BindPFlag(config.MakeMkvPath, rootCmd.PersistentFlags().Lookup("makemkv-path"))
 }
 
-func initConfig(cmd *cobra.Command, args []string) {
-    // var logLevel zapcore.Level;
-    // if debug {
-    //     logLevel = zap.DebugLevel
-    // } else {
-    //     logLevel = zap.InfoLevel
-    // }
+type contextKey struct {}
+var appContextKey = contextKey {}
 
-    // loggerConfig := zap.Config {
-    //     Level: zap.NewAtomicLevelAt(logLevel),
-    //     Development: false,
-    //     DisableCaller: false,
-    //     Encoding: "console",
-    //     OutputPaths: []string { "stdout" },
-    //     ErrorOutputPaths: []string { "stderr" },
-    // }
+type AppContext struct {
+	Config *config.Config
+	Logger *zap.SugaredLogger
+}
 
-    // Sugaring the logger by default as this is code is not performance critical
-    logger := zap.Must(zap.NewDevelopment()).Sugar()
+func initContext(cmd *cobra.Command, args []string) error {
+	config, err := initConfig()
+	if err != nil {
+		return err
+	}
+	println(fmt.Sprintf("%v", config))
+	logger, err := initLogger()
+	if err != nil {
+		return err
+	}
+	defer logger.Sync()
 
-    logger.Infoln("Initializing global config")
+	appContext := AppContext{
+		Config: config,
+		Logger: logger,
+	}
 
-    viper.SetConfigFile(cfgFile)
-    viper.ReadInConfig()
-    var cfg config.Config
-    viper.Unmarshal(&cfg)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, appContextKey, appContext)
 
+	cmd.SetContext(ctx)
 
-    ctx := context.Background()
-    ctx = context.WithValue(ctx, "GLOBAL", cfg)
-    ctx = context.WithValue(ctx, "LOGGER", logger)
-    logger.Infof("%s", ctx)
+	return nil
+}
 
-    cmd.SetContext(ctx)
+func initConfig() (*config.Config, error) {
+	viper.SetConfigFile(cfgFile)
+
+	viper.SetEnvPrefix("MKVMAP")
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read config file %s %w", cfgFile, err)
+	}
+
+	var cfg config.Config
+	err := viper.Unmarshal(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config %w", err)
+	}
+
+	return &cfg, nil
+}
+
+func initLogger() (*zap.SugaredLogger, error) {
+	logLevelStr := viper.GetString(config.LogLevel)
+	logLevel, err := zapcore.ParseLevel(logLevelStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse log level from given value: %s", logLevelStr)
+	}
+	loggerConfig := zap.NewProductionConfig()
+	loggerConfig.Level = zap.NewAtomicLevelAt(logLevel)
+
+	// Sugaring the logger by default as this is code is not performance critical
+	return zap.Must(loggerConfig.Build()).Sugar(), nil
 }

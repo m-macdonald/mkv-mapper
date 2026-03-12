@@ -1,0 +1,42 @@
+package lines
+
+import (
+    "strings"
+    "strconv"
+)
+
+// Messages in the format
+type StreamInfo struct {
+	parsedLineBase
+	// Attribute id
+	Id    int
+	Code  int
+	Value string
+}
+
+func (StreamInfo) isParsedLine() {}
+
+type StreamInfoParser struct {}
+
+func (s *StreamInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+    streamInfo := StreamInfo {}
+	streamInfo.raw = raw
+
+    params := strings.Split(payload, COMMA)
+
+    if id, err := strconv.Atoi(params[0]); err == nil {
+        streamInfo.Id = id
+    } else {
+        //error handling
+    }
+
+    if code, err := strconv.Atoi(params[1]); err == nil {
+        streamInfo.Code = code
+    } else {
+        //error handling
+    }
+
+    streamInfo.Value = params[2]
+
+    return streamInfo, nil
+}
