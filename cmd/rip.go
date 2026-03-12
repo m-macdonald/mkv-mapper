@@ -28,7 +28,7 @@ func init() {
 func runRip(cmd *cobra.Command, args []string) {
 	ctx, ok := cmd.Context().Value(appContextKey).(AppContext)
 	if !ok {
-		panic(fmt.Errorf("failed to retrieve app context. Unable to continue."))
+		panic(fmt.Errorf("failed to retrieve app context, unable to continue"))
 	}
 
 	makemkvClient := makemkv.NewClient(
@@ -43,7 +43,7 @@ func runRip(cmd *cobra.Command, args []string) {
 		discdbClient,
 		ctx.Logger.Named("pipeline"))
 
-	plan, err := pipeline.BuildPlan(ctx.Config.DiscRoot, ctx.Config.OutputDir)
+	plan, err := pipeline.BuildPlan(ctx.Config.DiscRoot, ctx.Config.OutputDir, ctx.Config.FilenameTmpl)
 	if err != nil {
 		ctx.Logger.Panicf("plan construction failed %w", err)
 	}

@@ -38,27 +38,24 @@ func Execute() {
 	}
 }
 
-var defaultCfgFile = "$HOME/.config/mkv-mapper/config.json"
+// TODO: support windows, darwin?
+var defaultCfgFile = "$XDG_CONFIG_HOME/mkv-mapper/config.json"
 
 var cfgFile string
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, fmt.Sprintf("Path to the config config file (default is %s)", defaultCfgFile))
 	rootCmd.PersistentFlags().String("output-dir", "", "Output directory for ripped files")
 	rootCmd.PersistentFlags().String("disc-root", "", "Disc mount root directory")
 	rootCmd.PersistentFlags().String("log-level", "info", "The level at which we should log any messages. Info is the default and probably does not ned to be changed")
 	rootCmd.PersistentFlags().String("makemkv-path", "makemkvcon", "The location of the makemkvcon binary. Defaults to assuming the binary is already available on the path")
-
-	// viper.BindPFlags(rootCmd.PersistentFlags())
+	rootCmd.PersistentFlags().String("filename-tmpl", "{{}}", "The filename template to use")
 
 	viper.BindPFlag(config.OutputDir, rootCmd.PersistentFlags().Lookup("output-dir"))
 	viper.BindPFlag(config.DiscRoot, rootCmd.PersistentFlags().Lookup("disc-root"))
 	viper.BindPFlag(config.LogLevel, rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag(config.MakeMkvPath, rootCmd.PersistentFlags().Lookup("makemkv-path"))
+	viper.BindPFlag(config.FilenameTmpl, rootCmd.PersistentFlags().Lookup("filename-tmpl"))
 }
 
 type contextKey struct {}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
+	"strconv"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/signature"
@@ -96,17 +96,18 @@ func (c *Client) RipDisc(discRoot string, outputDir string) error {
 	return nil
 }
 
-type makeMkvTitle struct {
+type Title struct {
 	SourceFileName   string
 	OutputFileName   string
 	SegmentSignature signature.SegmentSignature
+	OutputFileSize	 uint
 }
 
-func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]string, error) {
+func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Title, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resultChan := c.runCmd(ctx, "info", discRoot, "--robot")
-	titles := make(map[uint]makeMkvTitle)
+	titles := make(map[uint]Title)
 
 	for result := range resultChan {
 		if result.Error != nil {
@@ -119,32 +120,39 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]str
 				continue
 			}
 
-			titleFileNames, ok := titles[titleInfo.TitleId]
+			title, ok := titles[titleInfo.TitleId]
 			if !ok {
-				titleFileNames = makeMkvTitle{}
+				title = Title{}
 			}
 
 			switch titleInfo.AttributeId {
 			case lines.TitleInfoCodeSourceFileName:
-				titleFileNames.SourceFileName = titleInfo.Value
+				title.SourceFileName = titleInfo.Value
 			case lines.TitleInfoCodeOutputFileName:
-				titleFileNames.OutputFileName = titleInfo.Value
+				title.OutputFileName = titleInfo.Value
 			case lines.TitleInfoCodeSegmentsMap:
 				segmentSignature, err := signature.NormalizeSegments(titleInfo.Value)
 				if err != nil ||
 					segmentSignature == "" {
 					// continue if we can't parse?
 				} else {
-					titleFileNames.SegmentSignature = segmentSignature
+					title.SegmentSignature = segmentSignature
+				}
+			case lines.TitleInfoCodeSize:
+				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
+				if err != nil {
+
+				} else {
+					title.OutputFileSize = uint(size)
 				}
 			}
-			titles[titleInfo.TitleId] = titleFileNames
+			titles[titleInfo.TitleId] = title
 		}
 	}
-
-	t := make(map[signature.SegmentSignature]string)
-	for _, v := range titles {
-		t[v.SegmentSignature] = v.OutputFileName
+	
+	t := make(map[signature.SegmentSignature]Title)
+	for _, title := range titles {
+		t[title.SegmentSignature] = title
 	}
 
 	return t, nil

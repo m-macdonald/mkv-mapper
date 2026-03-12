@@ -2,9 +2,12 @@ package planner
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"m-macdonald/mkv-mapper/internal/discdb"
+	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/mapper"
+	"m-macdonald/mkv-mapper/internal/naming"
 	"m-macdonald/mkv-mapper/internal/signature"
 )
 
@@ -21,12 +24,24 @@ type TitlePlan struct {
 	SegmentSignature  signature.SegmentSignature
 	MakeMkvOutputFile string
 	FinalName         string
+	EstimatedSize     uint
 }
 
-func BuildPlan(discRoot string, outputDir string, disc *discdb.Disc, titles map[signature.SegmentSignature]string) (*DiscPlan, error) {
+func BuildPlan(
+	discRoot string,
+	outputDir string,
+	filenmTmpl string,
+	disc *discdb.Disc,
+	titles map[signature.SegmentSignature]makemkv.Title,
+) (*DiscPlan, error) {
 	mappings, err := mapper.MapTitles(disc, titles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+	}
+
+	filenmGen, err := naming.NewGenerator(filenmTmpl)
+	if err != nil {
+		return nil, err
 	}
 
 	plan := &DiscPlan{
@@ -34,15 +49,31 @@ func BuildPlan(discRoot string, outputDir string, disc *discdb.Disc, titles map[
 		OutputDir: outputDir,
 	}
 
-	for mkvFile, title := range mappings {
+	for _, mapping := range mappings {
+		filenm, err := renderFileNm(filenmGen, *disc, mapping)
+		if err != nil {
+			// TODO: Probably preferable to not kill the whole process here. Just report that this specific title could not be renamed
+			return nil, err
+		}
 		plan.Titles = append(plan.Titles, TitlePlan{
-			SourcePlaylist:    title.SourceFile,
-			MakeMkvOutputFile: mkvFile,
-			TitleId:           title.Index,
-			// TODO: Allow the final name to be built with a template?
-			FinalName:         title.Item.Title,
+			SourcePlaylist:    mapping.MakeMkvTitle.SourceFileName,
+			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFileName,
+			FinalName:         filenm,
+			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
 		})
 	}
 
 	return plan, nil
+}
+
+func renderFileNm(filenmGen *naming.Generator, disc discdb.Disc, mapping mapper.TitleMapping) (string, error) {
+	filenm, err := filenmGen.Render(disc, mapping.DiscdbTitle)
+	if err != nil {
+		return "", err
+	}
+	
+	// Pretty sure this should always be ".mkv", but just in case...
+	fileExt := filepath.Ext(mapping.MakeMkvTitle.OutputFileName)
+	
+	return filenm + fileExt, nil
 }
