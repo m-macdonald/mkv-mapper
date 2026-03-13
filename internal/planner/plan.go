@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/mapper"
@@ -30,7 +31,7 @@ type TitlePlan struct {
 func BuildPlan(
 	discRoot string,
 	outputDir string,
-	filenmTmpl string,
+	templateConfig config.TemplateConfig,
 	disc *discdb.Disc,
 	titles map[signature.SegmentSignature]makemkv.Title,
 ) (*DiscPlan, error) {
@@ -39,7 +40,7 @@ func BuildPlan(
 		return nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
 
-	filenmGen, err := naming.NewGenerator(filenmTmpl)
+	filenmGen, err := naming.NewGenerator(templateConfig)
 	if err != nil {
 		return nil, err
 	}

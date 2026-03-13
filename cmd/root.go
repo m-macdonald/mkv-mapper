@@ -49,17 +49,18 @@ func init() {
 	rootCmd.PersistentFlags().String("disc-root", "", "Disc mount root directory")
 	rootCmd.PersistentFlags().String("log-level", "info", "The level at which we should log any messages. Info is the default and probably does not ned to be changed")
 	rootCmd.PersistentFlags().String("makemkv-path", "makemkvcon", "The location of the makemkvcon binary. Defaults to assuming the binary is already available on the path")
-	rootCmd.PersistentFlags().String("filename-tmpl", "{{}}", "The filename template to use")
+	rootCmd.PersistentFlags().String("template-override", "", "Provide a file naming template for this rip. This template will be used in place of any config-defined templates")
 
 	viper.BindPFlag(config.OutputDir, rootCmd.PersistentFlags().Lookup("output-dir"))
 	viper.BindPFlag(config.DiscRoot, rootCmd.PersistentFlags().Lookup("disc-root"))
 	viper.BindPFlag(config.LogLevel, rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag(config.MakeMkvPath, rootCmd.PersistentFlags().Lookup("makemkv-path"))
-	viper.BindPFlag(config.FilenameTmpl, rootCmd.PersistentFlags().Lookup("filename-tmpl"))
+	viper.BindPFlag(config.TemplateOverride, rootCmd.PersistentFlags().Lookup("template-override"))
 }
 
-type contextKey struct {}
-var appContextKey = contextKey {}
+type contextKey struct{}
+
+var appContextKey = contextKey{}
 
 type AppContext struct {
 	Config *config.Config

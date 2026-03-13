@@ -3,34 +3,58 @@ package naming
 import (
 	"bytes"
 	"fmt"
-	"m-macdonald/mkv-mapper/internal/discdb"
 	"strings"
 	"text/template"
+
+	"m-macdonald/mkv-mapper/internal/config"
+	"m-macdonald/mkv-mapper/internal/discdb"
 )
 
 type Generator struct {
-	tmpl *template.Template
+	templates *template.Template
 }
 
-func NewGenerator(templateStr string) (*Generator, error) {
-	tmpl, err := template.
-		New("filename").
-		Funcs(templateFuncs()).
-		Parse(templateStr)
+func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
+	merged := mergeTemplates(userTemplates)
 
-	if err != nil {
-		return nil, err
+	rootTemplate := template.New("root").
+		Funcs(templateFuncs()).
+		Option("missingkey=error")
+
+	templates := map[templateType]string{
+		templateTypeMovie:   merged.Movie,
+		templateTypeEpisode: merged.Episode,
+		templateTypeExtra:   merged.Extra,
 	}
 
-	return &Generator{tmpl: tmpl}, nil
+	if merged.Override != "" {
+		templates[templateTypeOverride] = merged.Override
+	}
+
+	for name, template := range templates {
+		if _, err := rootTemplate.New(string(name)).Parse(template); err != nil {
+			return nil, fmt.Errorf("parsing %s template: %w", name, err)
+		}
+	}
+
+	return &Generator{templates: rootTemplate}, nil
 }
 
 func (g *Generator) Render(disc discdb.Disc, title discdb.Title) (string, error) {
 	vars := buildTemplateVars(disc, title)
 
 	var buf bytes.Buffer
+	if template := g.templates.Lookup(string(templateTypeOverride)); template != nil {
+		err := template.Execute(&buf, vars)
+		if err != nil {
+			return "", fmt.Errorf("override template failed to execute %w", err)
+		}
 
-	err := g.tmpl.Execute(&buf, vars)
+		return buf.String(), nil
+	}
+
+	templateType := templateTypeFromItemType(title.Item.Type)
+	err := g.templates.ExecuteTemplate(&buf, string(templateType), vars)
 	if err != nil {
 		return "", err
 	}
@@ -38,13 +62,41 @@ func (g *Generator) Render(disc discdb.Disc, title discdb.Title) (string, error)
 	return buf.String(), nil
 }
 
+func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
+	result := config.TemplateConfig{}
+
+	if userTemplates.Movie != "" {
+		result.Movie = userTemplates.Movie
+	} else {
+		result.Movie = defaultTemplates.Movie
+	}
+
+	if userTemplates.Episode != "" {
+		result.Episode = userTemplates.Episode
+	} else {
+		result.Episode = defaultTemplates.Episode
+	}
+
+	if userTemplates.Episode != "" {
+		result.Extra = userTemplates.Extra
+	} else {
+		result.Extra = defaultTemplates.Extra
+	}
+
+	if userTemplates.Override != "" {
+		result.Override = userTemplates.Override
+	}
+
+	return result
+}
+
 func buildTemplateVars(disc discdb.Disc, title discdb.Title) map[string]any {
 	return map[string]any{
-		"Disc": disc,
+		"Disc":  disc,
 		"Title": title,
 
-		"Season": title.Item.Season,
-		"Episode": title.Item.Episode,
+		"Season":       title.Item.Season,
+		"Episode":      title.Item.Episode,
 		"EpisodeTitle": title.Item.Title,
 	}
 }

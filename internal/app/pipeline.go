@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
@@ -33,7 +34,7 @@ func New(
 func (p *Pipeline) BuildPlan(
 	discRoot string,
 	outputDir string,
-	filenmTmpl string,
+	templateConfig config.TemplateConfig,
 ) (*planner.DiscPlan, error) {
 	root, err := files.ResolveDiscRoot(discRoot)
 	if err != nil {
@@ -57,7 +58,7 @@ func (p *Pipeline) BuildPlan(
 		return nil, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
 
-	plan, err := planner.BuildPlan(root, outputDir, filenmTmpl, disc, titles)
+	plan, err := planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct a plan for ripping the disc %w", err)
 	}

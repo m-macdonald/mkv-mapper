@@ -43,7 +43,7 @@ func runRip(cmd *cobra.Command, args []string) {
 		discdbClient,
 		ctx.Logger.Named("pipeline"))
 
-	plan, err := pipeline.BuildPlan(ctx.Config.DiscRoot, ctx.Config.OutputDir, ctx.Config.FilenameTmpl)
+	plan, err := pipeline.BuildPlan(ctx.Config.DiscRoot, ctx.Config.OutputDir, ctx.Config.Templates)
 	if err != nil {
 		ctx.Logger.Panicf("plan construction failed %w", err)
 	}
