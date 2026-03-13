@@ -103,10 +103,8 @@ func buildTemplateVars(disc discdb.Disc, title discdb.Title) map[string]any {
 
 func templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"pad": func(padCnt uint, val int) string {
-			padTmpl := fmt.Sprintf("%0d", padCnt)
-
-			return fmt.Sprintf(padTmpl, val)
+		"pad": func(padCnt uint, val string) string {
+			return fmt.Sprintf("%0*s", padCnt, val)
 		},
 		"upper": strings.ToUpper,
 		"lower": strings.ToLower,
