@@ -9,6 +9,7 @@ const (
 	templateTypeEpisode  templateType = "episode"
 	templateTypeExtra    templateType = "extra"
 	templateTypeOverride templateType = "override"
+	templateTypeFallback templateType = "fallback"
 )
 
 func templateTypeFromItemType(t discdb.ItemType) templateType {
@@ -22,6 +23,6 @@ func templateTypeFromItemType(t discdb.ItemType) templateType {
 		discdb.ItemTypeTrailer:
 		return templateTypeExtra
 	default:
-		return templateTypeExtra
+		return templateTypeFallback
 	}
 }

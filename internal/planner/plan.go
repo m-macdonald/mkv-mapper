@@ -68,13 +68,18 @@ func BuildPlan(
 }
 
 func renderFileNm(filenmGen *naming.Generator, disc discdb.Disc, mapping mapper.TitleMapping) (string, error) {
-	filenm, err := filenmGen.Render(disc, mapping.DiscdbTitle)
+	titleContext := naming.TitleContext{
+		DiscDbDisc:   disc,
+		DiscDbTitle:  mapping.DiscDbTitle,
+		MakeMkvTitle: mapping.MakeMkvTitle,
+	}
+	filenm, err := filenmGen.Render(titleContext)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Pretty sure this should always be ".mkv", but just in case...
 	fileExt := filepath.Ext(mapping.MakeMkvTitle.OutputFileName)
-	
+
 	return filenm + fileExt, nil
 }

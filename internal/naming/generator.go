@@ -8,10 +8,17 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
+	"m-macdonald/mkv-mapper/internal/makemkv"
 )
 
 type Generator struct {
 	templates *template.Template
+}
+
+type TitleContext struct {
+	DiscDbDisc   discdb.Disc
+	DiscDbTitle  discdb.Title
+	MakeMkvTitle makemkv.Title
 }
 
 func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
@@ -22,9 +29,10 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 		Option("missingkey=error")
 
 	templates := map[templateType]string{
-		templateTypeMovie:   merged.Movie,
-		templateTypeEpisode: merged.Episode,
-		templateTypeExtra:   merged.Extra,
+		templateTypeMovie:    merged.Movie,
+		templateTypeEpisode:  merged.Episode,
+		templateTypeExtra:    merged.Extra,
+		templateTypeFallback: merged.Fallback,
 	}
 
 	if merged.Override != "" {
@@ -40,8 +48,8 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 	return &Generator{templates: rootTemplate}, nil
 }
 
-func (g *Generator) Render(disc discdb.Disc, title discdb.Title) (string, error) {
-	vars := buildTemplateVars(disc, title)
+func (g *Generator) Render(titleCtx TitleContext) (string, error) {
+	vars := buildTemplateVars(titleCtx)
 
 	var buf bytes.Buffer
 	if template := g.templates.Lookup(string(templateTypeOverride)); template != nil {
@@ -53,7 +61,7 @@ func (g *Generator) Render(disc discdb.Disc, title discdb.Title) (string, error)
 		return buf.String(), nil
 	}
 
-	templateType := templateTypeFromItemType(title.Item.Type)
+	templateType := templateTypeFromItemType(titleCtx.DiscDbTitle.Item.Type)
 	err := g.templates.ExecuteTemplate(&buf, string(templateType), vars)
 	if err != nil {
 		return "", err
@@ -83,6 +91,12 @@ func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
 		result.Extra = defaultTemplates.Extra
 	}
 
+	if userTemplates.Fallback != "" {
+		result.Fallback = userTemplates.Fallback
+	} else {
+		result.Fallback = defaultTemplates.Fallback
+	}
+
 	if userTemplates.Override != "" {
 		result.Override = userTemplates.Override
 	}
@@ -90,14 +104,15 @@ func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
 	return result
 }
 
-func buildTemplateVars(disc discdb.Disc, title discdb.Title) map[string]any {
+func buildTemplateVars(titleCtx TitleContext) map[string]any {
 	return map[string]any{
-		"Disc":  disc,
-		"Title": title,
+		"Disc":    titleCtx.DiscDbDisc,
+		"Title":   titleCtx.DiscDbTitle,
+		"MakeMkv": titleCtx.MakeMkvTitle,
 
-		"Season":       title.Item.Season,
-		"Episode":      title.Item.Episode,
-		"EpisodeTitle": title.Item.Title,
+		"Season":       titleCtx.DiscDbTitle.Item.Season,
+		"Episode":      titleCtx.DiscDbTitle.Item.Episode,
+		"EpisodeTitle": titleCtx.DiscDbTitle.Item.Title,
 	}
 }
 

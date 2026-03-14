@@ -10,7 +10,7 @@ import (
 
 type TitleMapping struct {
 	MakeMkvTitle makemkv.Title
-	DiscdbTitle  discdb.Title
+	DiscDbTitle  discdb.Title
 }
 
 func MapTitles(discDbDisc *discdb.Disc, makeMkvTitlesBySegmentSignature map[signature.SegmentSignature]makemkv.Title) ([]TitleMapping, error) {
@@ -23,7 +23,7 @@ func MapTitles(discDbDisc *discdb.Disc, makeMkvTitlesBySegmentSignature map[sign
 		if makeMkvTitle, ok := makeMkvTitlesBySegmentSignature[segmentSignature]; ok {
 			mappings = append(mappings, TitleMapping{
 				MakeMkvTitle: 	makeMkvTitle,
-				DiscdbTitle:    discDbTitle,
+				DiscDbTitle:    discDbTitle,
 			})
 		}
 	}
