@@ -53,6 +53,7 @@ func BuildPlan(
 		Warnings: make([]PlanWarning, 0),
 	}
 
+	// Track used filenames so that we can resolve conflicts
 	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
 		filenameResolution, err := resolveFilename(filenameGen, disc, mapping, usedNames)

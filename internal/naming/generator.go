@@ -29,10 +29,10 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 		Option("missingkey=error")
 
 	templates := map[templateType]string{
-		templateTypeMovie:    merged.Movie,
-		templateTypeEpisode:  merged.Episode,
-		templateTypeExtra:    merged.Extra,
-		templateTypeFallback: merged.Unknown,
+		templateTypeMovie:   merged.Movie,
+		templateTypeEpisode: merged.Episode,
+		templateTypeExtra:   merged.Extra,
+		templateTypeUnknown: merged.Unknown,
 	}
 
 	if merged.Override != "" {

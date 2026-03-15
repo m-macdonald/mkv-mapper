@@ -7,7 +7,7 @@ type templateType string
 const (
 	templateTypeEpisode  templateType = "episode"
 	templateTypeExtra    templateType = "extra"
-	templateTypeFallback templateType = "fallback"
+	templateTypeUnknown  templateType = "fallback"
 	templateTypeMovie    templateType = "movie"
 	templateTypeOverride templateType = "override"
 )
@@ -23,6 +23,6 @@ func templateTypeFromItemType(t discdb.ItemType) templateType {
 		discdb.ItemTypeTrailer:
 		return templateTypeExtra
 	default:
-		return templateTypeFallback
+		return templateTypeUnknown
 	}
 }
