@@ -3,8 +3,11 @@ package planner
 import (
 	"fmt"
 
+	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
+	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/mapper"
+	"m-macdonald/mkv-mapper/internal/naming"
 	"m-macdonald/mkv-mapper/internal/signature"
 )
 
@@ -21,28 +24,63 @@ type TitlePlan struct {
 	SegmentSignature  signature.SegmentSignature
 	MakeMkvOutputFile string
 	FinalName         string
+	EstimatedSize     uint
 }
 
-func BuildPlan(discRoot string, outputDir string, disc *discdb.Disc, titles map[signature.SegmentSignature]string) (*DiscPlan, error) {
+func BuildPlan(
+	discRoot string,
+	outputDir string,
+	templateConfig config.TemplateConfig,
+	disc *discdb.Disc,
+	titles map[signature.SegmentSignature]makemkv.Title,
+) (*DiscPlan, *BuildReport, error) {
 	mappings, err := mapper.MapTitles(disc, titles)
 	if err != nil {
-		return nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+		return nil, nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+	}
+
+	filenameGen, err := naming.NewGenerator(templateConfig)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	plan := &DiscPlan{
 		DiscRoot:  discRoot,
 		OutputDir: outputDir,
+		Titles:    make([]TitlePlan, 0, len(mappings)),
+	}
+	report := &BuildReport{
+		Warnings: make([]PlanWarning, 0),
 	}
 
-	for mkvFile, title := range mappings {
+	// Track used filenames so that we can resolve conflicts
+	usedNames := make(map[string]struct{}, len(mappings))
+	for _, mapping := range mappings {
+		filenameResolution, err := resolveFilename(filenameGen, disc, mapping, usedNames)
+		if err != nil {
+			return nil, report, fmt.Errorf(
+				"failed to resolve filename for makemkv title %d (%s): %w",
+				mapping.MakeMkvTitle.TitleId,
+				mapping.MakeMkvTitle.OutputFileName,
+				err)
+		}
+
+		for _, event := range filenameResolution.Events {
+			report.Warnings = append(report.Warnings, PlanWarning{
+				TitleId: mapping.MakeMkvTitle.TitleId,
+				Code:    event.Code,
+				Message: event.Message,
+				Cause:   event.Cause,
+			})
+		}
+
 		plan.Titles = append(plan.Titles, TitlePlan{
-			SourcePlaylist:    title.SourceFile,
-			MakeMkvOutputFile: mkvFile,
-			TitleId:           title.Index,
-			// TODO: Allow the final name to be built with a template?
-			FinalName:         title.Item.Title,
+			SourcePlaylist:    mapping.MakeMkvTitle.SourceFileName,
+			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFileName,
+			FinalName:         filenameResolution.FinalName,
+			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
 		})
 	}
 
-	return plan, nil
+	return plan, report, nil
 }

@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
@@ -25,18 +26,22 @@ func New(
 ) *Pipeline {
 	return &Pipeline{
 		makemkv: makemkv,
-		discdb: discdb,
-		logger: logger,
+		discdb:  discdb,
+		logger:  logger,
 	}
 }
 
-func (p *Pipeline) BuildPlan(discRoot string, outputDir string) (*planner.DiscPlan, error) {
+func (p *Pipeline) BuildPlan(
+	discRoot string,
+	outputDir string,
+	templateConfig config.TemplateConfig,
+) (*planner.DiscPlan, error) {
 	root, err := files.ResolveDiscRoot(discRoot)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find disc root %w", err)
 	}
 	// if isValid := fs.ValidPath(outputDir); !isValid {
-	// 	return nil, fmt.Errorf("the given outputDir is invalid: %s", outputDir)	
+	// 	return nil, fmt.Errorf("the given outputDir is invalid: %s", outputDir)
 	// }
 	hash, err := files.Hash(root)
 	if err != nil {
@@ -53,23 +58,32 @@ func (p *Pipeline) BuildPlan(discRoot string, outputDir string) (*planner.DiscPl
 		return nil, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
 
-	plan, err := planner.BuildPlan(root, outputDir, disc, titles)
+	plan, _, err := planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct a plan for ripping the disc %w", err)	
+		return nil, fmt.Errorf("failed to construct a plan for ripping the disc %w", err)
 	}
 
 	return plan, nil
 }
+
+// func (p *Pipeline) ValidatePlan(plan *planner.DiscPlan) error {
+// 	totalSize := uint(0)
+// 	for _, title := range plan.Titles {
+// 		totalSize += title.EstimatedSize
+// 	}
+//
+// 	if
+// }
 
 func (p *Pipeline) RunPlan(plan *planner.DiscPlan) error {
 	err := p.makemkv.RipDisc(plan.DiscRoot, plan.OutputDir)
 	if err != nil {
 		return err
 	}
-	
+
 	mappings := make(map[string]string)
 	for _, titlePlan := range plan.Titles {
-		mappings[titlePlan.MakeMkvOutputFile] = titlePlan.FinalName 
+		mappings[titlePlan.MakeMkvOutputFile] = titlePlan.FinalName
 	}
 	errs := mapper.RenameTitles(plan.OutputDir, plan.OutputDir, mappings)
 	if len(errs) != 0 {

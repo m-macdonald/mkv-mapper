@@ -33,11 +33,21 @@ type Title struct {
 	Item       Item   `json:"Item"`
 }
 
+type ItemType string
+
+const (
+	ItemTypeMovie        ItemType = "MainMovie"
+	ItemTypeExtra        ItemType = "Extra"
+	ItemTypeEpisode      ItemType = "Episode"
+	ItemTypeDeletedScene ItemType = "DeletedScene"
+	ItemTypeTrailer      ItemType = "Trailer"
+)
+
 type Item struct {
-	Title   string `json:"Title"`
-	Type    string `json:"Type"`
-	Season  string `json:"Season"`
-	Episode string `json:"Episode"`
+	Title   string   `json:"Title"`
+	Type    ItemType `json:"Type"`
+	Season  string   `json:"Season"`
+	Episode string   `json:"Episode"`
 }
 
 func Index() error {
