@@ -80,7 +80,7 @@ func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
 		result.Episode = defaultTemplates.Episode
 	}
 
-	if userTemplates.Episode != "" {
+	if userTemplates.Extra != "" {
 		result.Extra = userTemplates.Extra
 	} else {
 		result.Extra = defaultTemplates.Extra
