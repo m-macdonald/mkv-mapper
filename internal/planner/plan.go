@@ -2,7 +2,6 @@ package planner
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
@@ -34,52 +33,54 @@ func BuildPlan(
 	templateConfig config.TemplateConfig,
 	disc *discdb.Disc,
 	titles map[signature.SegmentSignature]makemkv.Title,
-) (*DiscPlan, error) {
+) (*DiscPlan, *BuildReport, error) {
 	mappings, err := mapper.MapTitles(disc, titles)
 	if err != nil {
-		return nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+		return nil, nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
 
-	filenmGen, err := naming.NewGenerator(templateConfig)
+	filenameGen, err := naming.NewGenerator(templateConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	plan := &DiscPlan{
 		DiscRoot:  discRoot,
 		OutputDir: outputDir,
+		Titles:    make([]TitlePlan, 0, len(mappings)),
+	}
+	report := &BuildReport{
+		Warnings: make([]PlanWarning, 0),
 	}
 
+	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
-		filenm, err := renderFileNm(filenmGen, *disc, mapping)
+		filenameResolution, err := resolveFilename(filenameGen, disc, mapping, usedNames)
 		if err != nil {
-			// TODO: Probably preferable to not kill the whole process here. Just report that this specific title could not be renamed
-			return nil, err
+			return nil, report, fmt.Errorf(
+				"failed to resolve filename for makemkv title %d (%s): %w",
+				mapping.MakeMkvTitle.TitleId,
+				mapping.MakeMkvTitle.OutputFileName,
+				err)
 		}
+
+		fmt.Printf("Resolved filename: %s\n", filenameResolution.FinalName)
+		for _, event := range filenameResolution.Events {
+			report.Warnings = append(report.Warnings, PlanWarning{
+				TitleId: mapping.MakeMkvTitle.TitleId,
+				Code:    event.Code,
+				Message: event.Message,
+				Cause:   event.Cause,
+			})
+		}
+
 		plan.Titles = append(plan.Titles, TitlePlan{
 			SourcePlaylist:    mapping.MakeMkvTitle.SourceFileName,
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFileName,
-			FinalName:         filenm,
+			FinalName:         filenameResolution.FinalName,
 			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
 		})
 	}
 
-	return plan, nil
-}
-
-func renderFileNm(filenmGen *naming.Generator, disc discdb.Disc, mapping mapper.TitleMapping) (string, error) {
-	titleContext := naming.TitleContext{
-		DiscDbDisc:   disc,
-		DiscDbTitle:  mapping.DiscDbTitle,
-		MakeMkvTitle: mapping.MakeMkvTitle,
-	}
-	filenm, err := filenmGen.Render(titleContext)
-	if err != nil {
-		return "", err
-	}
-
-	// Pretty sure this should always be ".mkv", but just in case...
-	fileExt := filepath.Ext(mapping.MakeMkvTitle.OutputFileName)
-
-	return filenm + fileExt, nil
+	return plan, report, nil
 }

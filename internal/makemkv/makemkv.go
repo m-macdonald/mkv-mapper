@@ -57,7 +57,7 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 		scanner := bufio.NewScanner(stdOutPipe)
 		for scanner.Scan() {
 			parsedLine, err := lineProcessor.ProcessLine(scanner.Text())
-			
+
 			result := cmdResult{Line: parsedLine, Error: err}
 
 			select {
@@ -100,7 +100,8 @@ type Title struct {
 	SourceFileName   string
 	OutputFileName   string
 	SegmentSignature signature.SegmentSignature
-	OutputFileSize	 uint
+	OutputFileSize   uint
+	TitleId          uint
 }
 
 func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Title, error) {
@@ -122,7 +123,9 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 
 			title, ok := titles[titleInfo.TitleId]
 			if !ok {
-				title = Title{}
+				title = Title{
+					TitleId: titleInfo.TitleId,
+				}
 			}
 
 			switch titleInfo.AttributeId {
@@ -141,7 +144,6 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 			case lines.TitleInfoCodeSize:
 				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
 				if err != nil {
-
 				} else {
 					title.OutputFileSize = uint(size)
 				}
@@ -149,7 +151,7 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 			titles[titleInfo.TitleId] = title
 		}
 	}
-	
+
 	t := make(map[signature.SegmentSignature]Title)
 	for _, title := range titles {
 		t[title.SegmentSignature] = title

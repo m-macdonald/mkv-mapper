@@ -32,7 +32,7 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 		templateTypeMovie:    merged.Movie,
 		templateTypeEpisode:  merged.Episode,
 		templateTypeExtra:    merged.Extra,
-		templateTypeFallback: merged.Fallback,
+		templateTypeFallback: merged.Unknown,
 	}
 
 	if merged.Override != "" {
@@ -49,19 +49,14 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 }
 
 func (g *Generator) Render(titleCtx TitleContext) (string, error) {
+	templateType := templateTypeFromItemType(titleCtx.DiscDbTitle.Item.Type)
 	vars := buildTemplateVars(titleCtx)
 
-	var buf bytes.Buffer
-	if template := g.templates.Lookup(string(templateTypeOverride)); template != nil {
-		err := template.Execute(&buf, vars)
-		if err != nil {
-			return "", fmt.Errorf("override template failed to execute %w", err)
-		}
-
-		return buf.String(), nil
+	if g.templates.Lookup(string(templateTypeOverride)) != nil {
+		templateType = templateTypeOverride
 	}
 
-	templateType := templateTypeFromItemType(titleCtx.DiscDbTitle.Item.Type)
+	var buf bytes.Buffer
 	err := g.templates.ExecuteTemplate(&buf, string(templateType), vars)
 	if err != nil {
 		return "", err
@@ -91,10 +86,10 @@ func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
 		result.Extra = defaultTemplates.Extra
 	}
 
-	if userTemplates.Fallback != "" {
-		result.Fallback = userTemplates.Fallback
+	if userTemplates.Unknown != "" {
+		result.Unknown = userTemplates.Unknown
 	} else {
-		result.Fallback = defaultTemplates.Fallback
+		result.Unknown = defaultTemplates.Unknown
 	}
 
 	if userTemplates.Override != "" {

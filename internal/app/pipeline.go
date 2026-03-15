@@ -58,7 +58,7 @@ func (p *Pipeline) BuildPlan(
 		return nil, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
 
-	plan, err := planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
+	plan, _, err := planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct a plan for ripping the disc %w", err)
 	}

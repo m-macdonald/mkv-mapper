@@ -19,7 +19,7 @@ type Config struct {
 type TemplateConfig struct {
 	Episode  string `mapstructure:"episode"`
 	Extra    string `mapstructure:"extra"`
-	Fallback string `mapstructure:"fallback"`
 	Movie    string `mapstructure:"movie"`
 	Override string `mapstructure:"override"`
+	Unknown  string `mapstructure:"unknown"`
 }
