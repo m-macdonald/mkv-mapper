@@ -64,7 +64,6 @@ func BuildPlan(
 				err)
 		}
 
-		fmt.Printf("Resolved filename: %s\n", filenameResolution.FinalName)
 		for _, event := range filenameResolution.Events {
 			report.Warnings = append(report.Warnings, PlanWarning{
 				TitleId: mapping.MakeMkvTitle.TitleId,
