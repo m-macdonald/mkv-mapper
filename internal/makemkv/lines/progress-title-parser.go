@@ -10,7 +10,6 @@ type ProgressTitle struct {
 	Code         string
 	Id           int
 	Name         string
-	originalText string
 }
 
 func (ProgressTitle) isParsedLine() {}
@@ -27,7 +26,7 @@ func (p *ProgressTitleParser) Parse(raw string, payload string) (ParsedLine, err
     if id, err := strconv.Atoi(params[1]); err == nil {
         progressTitle.Id = id
     } else {
-
+		return nil, err
     }
     progressTitle.Name = params[2]
 

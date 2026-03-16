@@ -33,14 +33,15 @@ type LineParser interface {
 func NewLineProcessor() *LineProcessor {
 	return &LineProcessor{
 		parsers: map[string]LineParser{
+			"CINFO":  &DiscInfoParser{},
+			"DRV":    &DriveScanParser{},
 			"MSG":    &MessageParser{},
 			"PRGC":   &ProgressCurrentParser{},
 			"PRGT":   &ProgressTitleParser{},
-			"DRV":    &DriveScanParser{},
+			"PRGV":   &ProgressValueParser{},
 			"SINFO":  &StreamInfoParser{},
 			"TCOUNT": &TitleCountParser{},
 			"TINFO":  &TitleInfoParser{},
-			"CINFO":  &DiscInfoParser{},
 		},
 	}
 }
