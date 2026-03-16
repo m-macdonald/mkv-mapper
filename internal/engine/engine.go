@@ -19,24 +19,6 @@ type Engine struct {
 	logger  *zap.SugaredLogger
 }
 
-type EventSink func(RipEvent)
-
-type RipEvent struct {
-	Type         RipEventType
-	TitlePercent float64
-	DiscPercent  float64
-	TitlePlan    *planner.TitlePlan
-	Message      string
-}
-
-type RipEventType string
-
-const (
-	EventTitleStarted  RipEventType = "title_started"
-	EventTitleProgress RipEventType = "title_progress"
-	EventTitleFinished RipEventType = "title_finished"
-)
-
 func New(
 	makemkv *makemkv.Client,
 	discdb *discdb.Client,
@@ -81,8 +63,8 @@ func (e *Engine) ValidatePlan(plan *planner.DiscPlan) *ValidationReport {
 	return ValidatePlan(plan)
 }
 
-func (e *Engine) RunPlan(plan *planner.DiscPlan, sink EventSink) error {
-	err := e.makemkv.RipDisc(plan.DiscRoot, plan.OutputDir)
+func (e *Engine) RunPlan(plan *planner.DiscPlan, onLine makemkv.LineSink) error {
+	err := e.makemkv.RipDisc(plan.DiscRoot, plan.OutputDir, onLine)
 	if err != nil {
 		return err
 	}
