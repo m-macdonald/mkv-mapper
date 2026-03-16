@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ripCmd represents the rip command
 var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
@@ -39,7 +38,15 @@ func runRip(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: Log the intended plan steps
+	if len(ripPreview.ValidationReport.Errors) > 0 {
+		// TODO: Handle the potentially multiple errors within ValidationReport
+		for _, err := range ripPreview.ValidationReport.Errors {
+			ctx.Logger.Error(err)
+		}
+		return fmt.Errorf("validation failed")
+	}
+
+	// TODO: Log the intended plan steps and any warnings from the ValidationReport
 	err = services.Ripper.ExecuteRip(
 		ripPreview.Plan,
 		/* TODO: For now I'm passing this func all the way down to the makemkv package

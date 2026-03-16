@@ -90,7 +90,7 @@ func (c *Client) RipDisc(
 ) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir, "--robot")
+	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir)
 
 	for result := range resultChan {
 		if result.Error != nil {
@@ -148,7 +148,7 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 				segmentSignature, err := signature.NormalizeSegments(titleInfo.Value)
 				if err != nil ||
 					segmentSignature == "" {
-					// continue if we can't parse?
+					// TODO: continue if we can't parse?
 				} else {
 					title.SegmentSignature = segmentSignature
 				}
