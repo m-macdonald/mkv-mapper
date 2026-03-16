@@ -36,9 +36,12 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 	// TODO: Fix magic number
 	resultChan := make(chan cmdResult, 32)
 
+	fullArgs := append([]string{}, "--robot", "--progress=-stdout")
+	fullArgs = append(fullArgs, args...)
+
 	go func() {
 		defer close(resultChan)
-		cmd := exec.CommandContext(ctx, c.makeMkvPath, args...)
+		cmd := exec.CommandContext(ctx, c.makeMkvPath, fullArgs...)
 		cmd.Stdin = nil
 		cmd.Stderr = os.Stderr
 		stdOutPipe, err := cmd.StdoutPipe()
@@ -78,18 +81,26 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 	return resultChan
 }
 
-func (c *Client) RipDisc(discRoot string, outputDir string) error {
+type LineSink func(lines.ParsedLine)
+
+func (c *Client) RipDisc(
+	discRoot string,
+	outputDir string,
+	onLine LineSink,
+) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir, "--robot")
+	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir)
 
 	for result := range resultChan {
 		if result.Error != nil {
 			cancel()
 
 			return result.Error
-		} else {
-			c.logger.Infoln(result.Line.Raw())
+		}
+
+		if result.Line != nil {
+			onLine(result.Line)
 		}
 	}
 
@@ -107,7 +118,7 @@ type Title struct {
 func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Title, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resultChan := c.runCmd(ctx, "info", discRoot, "--robot")
+	resultChan := c.runCmd(ctx, "info", discRoot)
 	titles := make(map[uint]Title)
 
 	for result := range resultChan {
@@ -137,7 +148,7 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 				segmentSignature, err := signature.NormalizeSegments(titleInfo.Value)
 				if err != nil ||
 					segmentSignature == "" {
-					// continue if we can't parse?
+					// TODO: continue if we can't parse?
 				} else {
 					title.SegmentSignature = segmentSignature
 				}

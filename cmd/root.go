@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
 
 	"github.com/spf13/cobra"
@@ -58,15 +59,6 @@ func init() {
 	viper.BindPFlag(config.TemplateOverride, rootCmd.PersistentFlags().Lookup("template-override"))
 }
 
-type contextKey struct{}
-
-var appContextKey = contextKey{}
-
-type AppContext struct {
-	Config *config.Config
-	Logger *zap.SugaredLogger
-}
-
 func initContext(cmd *cobra.Command, args []string) error {
 	config, err := initConfig()
 	if err != nil {
@@ -79,13 +71,13 @@ func initContext(cmd *cobra.Command, args []string) error {
 	}
 	defer logger.Sync()
 
-	appContext := AppContext{
+	appContext := app.AppContext{
 		Config: config,
 		Logger: logger,
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, appContextKey, appContext)
+	ctx = context.WithValue(ctx, app.AppContextKey, appContext)
 
 	cmd.SetContext(ctx)
 
