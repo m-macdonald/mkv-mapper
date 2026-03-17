@@ -5,9 +5,10 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"m-macdonald/mkv-mapper/internal/app"
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/event"
 
 	"github.com/spf13/cobra"
 )
@@ -16,7 +17,7 @@ var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
 	Long:  `The currently inserted disc is ripped to .mkv files and the resulting files are renamed in accordance with the naming pattern using values from TheDiscDB`,
-	RunE:   runRip,
+	RunE:  runRip,
 }
 
 func init() {
@@ -46,13 +47,17 @@ func runRip(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed")
 	}
 
+	renderer := event.NewRenderer(os.Stdout)
+	defer renderer.Close()
+
 	// TODO: Log the intended plan steps and any warnings from the ValidationReport
 	err = services.Ripper.ExecuteRip(
 		ripPreview.Plan,
-		/* TODO: For now I'm passing this func all the way down to the makemkv package
-		At some point I may add a translation layer so that this func doesn't see the raw MakeMKV lines */
-		func(pl lines.ParsedLine) {
-			ctx.Logger.Infoln(pl.Raw())
+		func(e event.Event) {
+			err := renderer.HandleEvent(e)
+			if err != nil {
+				ctx.Logger.Warnw("renderer failed", "error", err)
+			}
 		})
 	if err != nil {
 		return err

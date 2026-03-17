@@ -5,7 +5,6 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
-	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/planner"
 
 	"go.uber.org/zap"
@@ -49,8 +48,8 @@ func (r *Ripper) PreviewRip(
 	}, nil
 }
 
-func (r *Ripper) ExecuteRip(plan *planner.DiscPlan, onLine makemkv.LineSink) error {
-	return r.engine.RunPlan(plan, onLine)
+func (r *Ripper) ExecuteRip(plan *planner.DiscPlan, onEvent engine.EngineEventSink) error {
+	return r.engine.RunPlan(plan, onEvent)
 }
 
 // func (r *Ripper) RipDisc(
