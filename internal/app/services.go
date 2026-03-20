@@ -28,7 +28,7 @@ func BuildServices(ctx AppContext) *Services {
 		ctx.Logger.Named("makemkv"),
 	)
 
-	discdbClient := discdb.NewClient()
+	discdbClient := discdb.NewCachedClient()
 
 	engine := engine.New(
 		makemkvClient,

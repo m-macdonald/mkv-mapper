@@ -2,11 +2,10 @@ package planner
 
 import (
 	"fmt"
-	"m-macdonald/mkv-mapper/internal/discdb"
-	"m-macdonald/mkv-mapper/internal/mapper"
-	"m-macdonald/mkv-mapper/internal/naming"
 	"path/filepath"
 	"strings"
+
+	"m-macdonald/mkv-mapper/internal/naming"
 )
 
 const maxUniqueFilenameAttempts = 1000
@@ -24,16 +23,15 @@ type FilenameEvent struct {
 
 func resolveFilename(
 	filenameGen *naming.Generator,
-	disc *discdb.Disc,
-	mapping mapper.TitleMapping,
+	titleContext naming.TitleContext,
 	used map[string]struct{},
 ) (FilenameResolution, error) {
 	var events []FilenameEvent
 
-	ext := filepath.Ext(mapping.MakeMkvTitle.OutputFileName)
-	baseName, err := resolveBaseFilename(filenameGen, *disc, mapping)
+	ext := filepath.Ext(titleContext.MakeMkvTitle.OutputFilename)
+	baseName, err := filenameGen.Render(titleContext)
 	if err != nil {
-		baseName = strings.TrimSuffix(mapping.MakeMkvTitle.OutputFileName, ext)
+		baseName = strings.TrimSuffix(titleContext.MakeMkvTitle.OutputFilename, ext)
 		events = append(events, FilenameEvent{
 			Code:    WarningNamingFallback,
 			Message: "failed to resolve configured filename; using MakeMKV filename",
@@ -44,7 +42,7 @@ func resolveFilename(
 	finalName, collisionResolved, err := ensureUniqueFilename(
 		baseName,
 		ext,
-		mapping.MakeMkvTitle.TitleId,
+		titleContext.MakeMkvTitle.TitleId,
 		used)
 	if err != nil {
 		return FilenameResolution{}, err
@@ -62,24 +60,10 @@ func resolveFilename(
 	}, nil
 }
 
-func resolveBaseFilename(
-	filenmGen *naming.Generator,
-	disc discdb.Disc,
-	mapping mapper.TitleMapping,
-) (string, error) {
-	titleContext := naming.TitleContext{
-		DiscDbDisc:   disc,
-		DiscDbTitle:  mapping.DiscDbTitle,
-		MakeMkvTitle: mapping.MakeMkvTitle,
-	}
-
-	return filenmGen.Render(titleContext)
-}
-
 func ensureUniqueFilename(
 	baseName string,
 	ext string,
-	titleId uint,
+	titleId int,
 	used map[string]struct{},
 ) (string, bool, error) {
 	filename := baseName + ext

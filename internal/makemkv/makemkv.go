@@ -108,18 +108,18 @@ func (c *Client) RipDisc(
 }
 
 type Title struct {
-	SourceFileName   string
-	OutputFileName   string
+	SourceFilename   string
+	OutputFilename   string
 	SegmentSignature signature.SegmentSignature
-	OutputFileSize   uint
-	TitleId          uint
+	OutputFileSize   uint64
+	TitleId          int
 }
 
 func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Title, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resultChan := c.runCmd(ctx, "info", discRoot)
-	titles := make(map[uint]Title)
+	titles := make(map[int]Title)
 
 	for result := range resultChan {
 		if result.Error != nil {
@@ -141,9 +141,9 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 
 			switch titleInfo.AttributeId {
 			case lines.TitleInfoCodeSourceFileName:
-				title.SourceFileName = titleInfo.Value
+				title.SourceFilename = titleInfo.Value
 			case lines.TitleInfoCodeOutputFileName:
-				title.OutputFileName = titleInfo.Value
+				title.OutputFilename = titleInfo.Value
 			case lines.TitleInfoCodeSegmentsMap:
 				segmentSignature, err := signature.NormalizeSegments(titleInfo.Value)
 				if err != nil ||
@@ -156,7 +156,7 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
 				if err != nil {
 				} else {
-					title.OutputFileSize = uint(size)
+					title.OutputFileSize = size
 				}
 			}
 			titles[titleInfo.TitleId] = title

@@ -1,6 +1,7 @@
-package engine 
+package engine
 
 import (
+	"context"
 	"fmt"
 
 	"m-macdonald/mkv-mapper/internal/config"
@@ -15,13 +16,13 @@ import (
 
 type Engine struct {
 	makemkv *makemkv.Client
-	discdb  *discdb.Client
+	discdb  *discdb.CachedClient
 	logger  *zap.SugaredLogger
 }
 
 func New(
 	makemkv *makemkv.Client,
-	discdb *discdb.Client,
+	discdb *discdb.CachedClient,
 	logger *zap.SugaredLogger,
 ) *Engine {
 	return &Engine{
@@ -44,8 +45,9 @@ func (e *Engine) BuildPlan(
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to hash disc %w", err)
 	}
-
-	disc, err := e.discdb.GetDisc(hash)
+	
+	// TODO: Replace context.BAckground()
+	disc, err := e.discdb.LookupDisc(context.Background() ,hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
 	}

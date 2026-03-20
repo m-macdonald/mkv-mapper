@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"m-macdonald/mkv-mapper/internal/config"
-	"m-macdonald/mkv-mapper/internal/discdb"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -29,10 +28,10 @@ func runImport(cmd *cobra.Command, args []string) {
 
 	logger.Infoln(cfg)
 
-	err := discdb.Index()
-	if err != nil {
-		logger.Panicln("Import failed", err)
-	} else {
-		logger.Infoln("Import Complete")
-	}
+	// err := discdb.Index()
+	// if err != nil {
+	// 	logger.Panicln("Import failed", err)
+	// } else {
+	// 	logger.Infoln("Import Complete")
+	// }
 }

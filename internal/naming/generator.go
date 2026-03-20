@@ -16,8 +16,9 @@ type Generator struct {
 }
 
 type TitleContext struct {
-	DiscDbDisc   discdb.Disc
+	DiscDbMedia  discdb.Media
 	DiscDbTitle  discdb.Title
+	DiscDbDisc   discdb.Disc
 	MakeMkvTitle makemkv.Title
 }
 
@@ -49,7 +50,11 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 }
 
 func (g *Generator) Render(titleCtx TitleContext) (string, error) {
-	templateType := templateTypeFromItemType(titleCtx.DiscDbTitle.Item.Type)
+	templateType := templateTypeUnknown
+	if item, ok := titleCtx.DiscDbTitle.Item(); ok {
+		templateType = templateTypeFromItemType(item.Type)
+	}
+
 	vars := buildTemplateVars(titleCtx)
 
 	if g.templates.Lookup(string(templateTypeOverride)) != nil {
@@ -99,15 +104,81 @@ func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
 	return result
 }
 
-func buildTemplateVars(titleCtx TitleContext) map[string]any {
-	return map[string]any{
-		"Disc":    titleCtx.DiscDbDisc,
-		"Title":   titleCtx.DiscDbTitle,
-		"MakeMkv": titleCtx.MakeMkvTitle,
+type TemplateVars struct {
+	Media   TemplateMedia
+	Disc    TemplateDisc
+	Title   TemplateTitle
+	MakeMkv TemplateMakeMkvTitle
 
-		"Season":       titleCtx.DiscDbTitle.Item.Season,
-		"Episode":      titleCtx.DiscDbTitle.Item.Episode,
-		"EpisodeTitle": titleCtx.DiscDbTitle.Item.Title,
+	Season       string
+	Episode      string
+	EpisodeTitle string
+	MovieTitle   string
+}
+
+type TemplateMedia struct {
+	Title string
+	Year  int
+	Type  string
+}
+
+type TemplateDisc struct {
+	ContentHash string
+	Format      string
+	Name        string
+	Slug        string
+}
+
+type TemplateTitle struct {
+	DisplaySize string
+	Duration    string
+	SegmentMap  string
+	Size        uint64
+	SourceFile  string
+}
+
+type TemplateMakeMkvTitle struct {
+	TitleId          int
+	OutputFilename   string
+	SourceFilename   string
+	SegmentSignature string
+	OutputFileSize   uint64
+}
+
+func buildTemplateVars(titleCtx TitleContext) TemplateVars {
+	item, _ := titleCtx.DiscDbTitle.Item()
+
+	return TemplateVars{
+		Media: TemplateMedia{
+			Title: titleCtx.DiscDbMedia.Title,
+			Year:  titleCtx.DiscDbMedia.Year,
+			Type:  titleCtx.DiscDbMedia.Type,
+		},
+		Disc: TemplateDisc{
+			ContentHash: titleCtx.DiscDbDisc.ContentHash,
+			Format:      titleCtx.DiscDbDisc.Format,
+			Name:        titleCtx.DiscDbDisc.Name,
+			Slug:        titleCtx.DiscDbDisc.Slug,
+		},
+		Title: TemplateTitle{
+			DisplaySize: titleCtx.DiscDbTitle.DisplaySize,
+			Duration:    titleCtx.DiscDbTitle.Duration,
+			SegmentMap:  titleCtx.DiscDbTitle.SegmentMap,
+			Size:        titleCtx.DiscDbTitle.Size,
+			SourceFile:  titleCtx.DiscDbTitle.SourceFile,
+		},
+		MakeMkv: TemplateMakeMkvTitle{
+			TitleId:          titleCtx.MakeMkvTitle.TitleId,
+			OutputFilename:   titleCtx.MakeMkvTitle.OutputFilename,
+			SourceFilename:   titleCtx.MakeMkvTitle.SourceFilename,
+			SegmentSignature: string(titleCtx.MakeMkvTitle.SegmentSignature),
+			OutputFileSize:   titleCtx.MakeMkvTitle.OutputFileSize,
+		},
+
+		Season:       item.Season,
+		Episode:      item.Episode,
+		EpisodeTitle: item.Title,
+		MovieTitle:   item.Title,
 	}
 }
 
