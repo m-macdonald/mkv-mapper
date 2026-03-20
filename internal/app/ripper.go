@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 
 	"m-macdonald/mkv-mapper/internal/config"
@@ -32,11 +33,12 @@ func NewRipper(engine *engine.Engine, logger *zap.SugaredLogger) *Ripper {
 }
 
 func (r *Ripper) PreviewRip(
+	ctx context.Context,
 	discRoot string,
 	outputDir string,
 	templates config.TemplateConfig,
 ) (*RipPreview, error) {
-	plan, buildReport, err := r.engine.BuildPlan(discRoot, outputDir, templates)
+	plan, buildReport, err := r.engine.BuildPlan(ctx, discRoot, outputDir, templates)
 	if err != nil {
 		return nil, fmt.Errorf("build plan: %w", err)
 	}
@@ -49,8 +51,12 @@ func (r *Ripper) PreviewRip(
 	}, nil
 }
 
-func (r *Ripper) ExecuteRip(plan *planner.DiscPlan, onLine makemkv.LineSink) error {
-	return r.engine.RunPlan(plan, onLine)
+func (r *Ripper) ExecuteRip(
+	ctx context.Context,
+	plan *planner.DiscPlan,
+	onLine makemkv.LineSink,
+) error {
+	return r.engine.RunPlan(ctx, plan, onLine)
 }
 
 // func (r *Ripper) RipDisc(

@@ -84,13 +84,14 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 type LineSink func(lines.ParsedLine)
 
 func (c *Client) RipDisc(
+	ctx context.Context,
 	discRoot string,
 	outputDir string,
 	onLine LineSink,
 ) error {
-	ctx, cancel := context.WithCancel(context.Background())
+	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir)
+	resultChan := c.runCmd(cancelCtx, "mkv", discRoot, "all", outputDir)
 
 	for result := range resultChan {
 		if result.Error != nil {
@@ -115,10 +116,10 @@ type Title struct {
 	TitleId          int
 }
 
-func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Title, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (c *Client) ReadTitles(ctx context.Context, discRoot string) (map[signature.SegmentSignature]Title, error) {
+	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	resultChan := c.runCmd(ctx, "info", discRoot)
+	resultChan := c.runCmd(cancelCtx, "info", discRoot)
 	titles := make(map[int]Title)
 
 	for result := range resultChan {

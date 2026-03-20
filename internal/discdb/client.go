@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const discDbGraphqlEndpoint = "https://thediscdb.com/graphql"
+
 type Client interface {
 	LookupDisc(ctx context.Context, discHash string) (*DiscRecord, error)
 }
@@ -53,8 +55,7 @@ type RemoteClient struct {
 
 func NewRemoteClient() *RemoteClient {
 	return &RemoteClient{
-		// TODO: Probably safe to hardcode this, but move it somewhere else
-		endpoint: "https://thediscdb.com/graphql",
+		endpoint: discDbGraphqlEndpoint,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -72,7 +73,6 @@ type graphqlResponse[T any] struct {
 	Errors []graphqlError `json:"errors"`
 }
 
-// There are additional fields that I don't think I'll need.
 type graphqlError struct {
 	Message string   `json:"message"`
 	Path    []string `json:"path"`
