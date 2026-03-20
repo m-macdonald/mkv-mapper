@@ -51,7 +51,7 @@ func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
 
 func (g *Generator) Render(titleCtx TitleContext) (string, error) {
 	templateType := templateTypeUnknown
-	if item, ok := titleCtx.DiscDbTitle.Item(); ok {
+	if item, ok := titleCtx.DiscDbTitle.ItemValue(); ok {
 		templateType = templateTypeFromItemType(item.Type)
 	}
 
@@ -146,7 +146,7 @@ type TemplateMakeMkvTitle struct {
 }
 
 func buildTemplateVars(titleCtx TitleContext) TemplateVars {
-	item, _ := titleCtx.DiscDbTitle.Item()
+	item, _ := titleCtx.DiscDbTitle.ItemValue()
 
 	return TemplateVars{
 		Media: TemplateMedia{

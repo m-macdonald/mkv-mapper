@@ -64,7 +64,6 @@ func initContext(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	println(fmt.Sprintf("%v", config))
 	logger, err := initLogger()
 	if err != nil {
 		return err

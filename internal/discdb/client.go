@@ -15,19 +15,35 @@ type Client interface {
 }
 
 type CachedClient struct {
-	// cache  *Cache
-	client *RemoteClient
+	cache  Cache
+	client Client
 }
 
-func NewCachedClient() *CachedClient {
+func NewCachedClient(cache Cache, client Client) (*CachedClient, error) {
 	return &CachedClient{
-		// cache:  nil,
-		client: newRemoteClient(),
-	}
+		cache:  cache,
+		client: client,
+	}, nil
 }
 
 func (c *CachedClient) LookupDisc(ctx context.Context, discHash string) (*DiscRecord, error) {
-	return c.client.LookupDisc(ctx, discHash)
+	if record, ok, err := c.cache.GetDiscRecord(ctx, discHash); err != nil {
+		return nil, fmt.Errorf("disc cache read: %w", err)
+	} else if ok {
+		return record, nil
+	}
+	
+	record, err := c.client.LookupDisc(ctx, discHash)
+	if err != nil {
+		return nil, fmt.Errorf("disc lookup: %w", err) 
+	}
+
+	err = c.cache.PutDiscRecord(ctx, discHash, record)
+	if err != nil {
+		return nil, fmt.Errorf("disc cache write: %w", err)
+	}
+	
+	return record, nil
 }
 
 type RemoteClient struct {
@@ -35,8 +51,9 @@ type RemoteClient struct {
 	endpoint   string
 }
 
-func newRemoteClient() *RemoteClient {
+func NewRemoteClient() *RemoteClient {
 	return &RemoteClient{
+		// TODO: Probably safe to hardcode this, but move it somewhere else
 		endpoint: "https://thediscdb.com/graphql",
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
@@ -166,145 +183,3 @@ func (r *RemoteClient) LookupDisc(ctx context.Context, discHash string) (*DiscRe
 	}
 }
 
-type DiscRecord struct {
-	Media   Media
-	Release Release
-	Disc    Disc
-}
-
-type Media struct {
-	Title string
-	Year  int
-	Type  string
-}
-
-type Release struct {
-	Slug   string
-	Locale string
-	Year   int
-	Title  string
-}
-
-type Disc struct {
-	ContentHash string
-	Name        string
-	Format      string
-	Slug        string
-	Titles      []Title
-}
-
-type Title struct {
-	Duration    string
-	DisplaySize string
-	SourceFile  string
-	Size        uint64
-	SegmentMap  string
-	item        *Item
-}
-
-func (t *Title) Item() (Item, bool) {
-	if t.item == nil {
-		return Item{}, false
-	}
-
-	return *t.item, true
-}
-
-type Item struct {
-	Title   string
-	Season  string
-	Episode string
-	Type    ItemType
-}
-
-type ItemType string
-
-const (
-	ItemTypeMovie        ItemType = "MainMovie"
-	ItemTypeExtra        ItemType = "Extra"
-	ItemTypeEpisode      ItemType = "Episode"
-	ItemTypeDeletedScene ItemType = "DeletedScene"
-	ItemTypeTrailer      ItemType = "Trailer"
-)
-
-func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHash string) (*DiscRecord, error) {
-	var matchedRelease *ReleaseResponse
-	var matchedDisc *DiscResponse
-
-	for i := range mediaItemResponse.Releases {
-		release := &mediaItemResponse.Releases[i]
-
-		for j := range release.Discs {
-			disc := &release.Discs[j]
-
-			if disc.ContentHash != discHash {
-				continue
-			}
-
-			// TODO: Consider allowing multiple matches in the future.
-			// Will this require allowing the user to select from the matches?
-			// Might be able to compare the segment maps to those reported by makemkv to find a unique match
-			if matchedDisc != nil || matchedRelease != nil {
-				return nil, fmt.Errorf("multiple matching discs found for hash %s", discHash)
-			}
-
-			matchedDisc = disc
-			matchedRelease = release
-		}
-	}
-
-	if matchedDisc == nil || matchedRelease == nil {
-		return nil, fmt.Errorf("no matching disc found for hash %s", discHash)
-	}
-
-	return &DiscRecord{
-		Media: Media{
-			Title: mediaItemResponse.Title,
-			Year:  mediaItemResponse.Year,
-			Type:  mediaItemResponse.Type,
-		},
-		Release: Release{
-			Slug:   matchedRelease.Slug,
-			Locale: matchedRelease.Locale,
-			Year:   matchedRelease.Year,
-			Title:  matchedRelease.Title,
-		},
-		Disc: Disc{
-			ContentHash: matchedDisc.ContentHash,
-			Name:        matchedDisc.Name,
-			Format:      matchedDisc.Format,
-			Slug:        matchedDisc.Slug,
-			Titles:      titleResponsesToTitles(matchedDisc.Titles),
-		},
-	}, nil
-}
-
-func titleResponsesToTitles(titleResponses []TitleResponse) []Title {
-	titles := make([]Title, 0, len(titleResponses))
-
-	for _, titleResponse := range titleResponses {
-		titles = append(titles, Title{
-			Duration:    titleResponse.Duration,
-			DisplaySize: titleResponse.DisplaySize,
-			SourceFile:  titleResponse.SourceFile,
-			Size:        titleResponse.Size,
-			SegmentMap:  titleResponse.SegmentMap,
-			item:        itemResponseToItem(titleResponse.Item),
-		})
-	}
-
-	return titles
-}
-
-func itemResponseToItem(itemResponse *ItemResponse) *Item {
-	if itemResponse == nil {
-		return nil
-	}
-
-	return &Item{
-		Title:   itemResponse.Title,
-		Season:  itemResponse.Season,
-		Episode: itemResponse.Episode,
-		Type:    ItemType(itemResponse.Type),
-	}
-}

@@ -11,6 +11,8 @@ import (
 
 type Services struct {
 	Ripper *Ripper
+
+	cache *discdb.SQLiteCache
 }
 
 type contextKey struct{}
@@ -22,13 +24,23 @@ type AppContext struct {
 	Logger *zap.SugaredLogger
 }
 
-func BuildServices(ctx AppContext) *Services {
+func BuildServices(ctx AppContext) (*Services, error) {
 	makemkvClient := makemkv.NewClient(
 		ctx.Config.MakeMkvPath,
 		ctx.Logger.Named("makemkv"),
 	)
 
-	discdbClient := discdb.NewCachedClient()
+	cache, err := discdb.NewSQLiteCache("")
+	if err != nil {
+		return nil, err
+	}
+
+	remoteClient := discdb.NewRemoteClient()
+
+	discdbClient, err := discdb.NewCachedClient(cache, remoteClient)
+	if err != nil {
+		return nil, err
+	}
 
 	engine := engine.New(
 		makemkvClient,
@@ -39,5 +51,14 @@ func BuildServices(ctx AppContext) *Services {
 
 	return &Services{
 		Ripper: ripper,
+		cache: cache,
+	}, nil
+}
+
+func (s *Services) Close() error {
+	if s.cache != nil {
+		return s.cache.Close()
 	}
+
+	return nil
 }
