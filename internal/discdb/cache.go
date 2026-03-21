@@ -18,8 +18,8 @@ type SQLiteCache struct {
 	db *sql.DB
 }
 
-func NewSQLiteCache(path string) (*SQLiteCache, error) {
-	db, err := sql.Open("sqlite3", path)
+func NewSQLiteCache(cachePath string) (*SQLiteCache, error) {
+	db, err := sql.Open("sqlite3", cachePath)
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +31,9 @@ func NewSQLiteCache(path string) (*SQLiteCache, error) {
 
 func (s *SQLiteCache) GetDiscRecord(ctx context.Context, discHash string) (*DiscRecord, bool, error) {
 	// This will need to change if we ever need to support multiple discs matching the same hash.
-	row := s.db.QueryRow(`
-		SELECT 
+	row := s.db.QueryRowContext(
+		ctx,
+		`SELECT 
 			record
 		FROM disc_record
 		WHERE hash = ?

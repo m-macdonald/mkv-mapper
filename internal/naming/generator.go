@@ -22,22 +22,20 @@ type TitleContext struct {
 	MakeMkvTitle makemkv.Title
 }
 
-func NewGenerator(userTemplates config.TemplateConfig) (*Generator, error) {
-	merged := mergeTemplates(userTemplates)
-
+func NewGenerator(templateConfig config.TemplateConfig) (*Generator, error) {
 	rootTemplate := template.New("root").
 		Funcs(templateFuncs()).
 		Option("missingkey=error")
 
 	templates := map[templateType]string{
-		templateTypeMovie:   merged.Movie,
-		templateTypeEpisode: merged.Episode,
-		templateTypeExtra:   merged.Extra,
-		templateTypeUnknown: merged.Unknown,
+		templateTypeMovie:   templateConfig.Movie,
+		templateTypeEpisode: templateConfig.Episode,
+		templateTypeExtra:   templateConfig.Extra,
+		templateTypeUnknown: templateConfig.Unknown,
 	}
 
-	if merged.Override != "" {
-		templates[templateTypeOverride] = merged.Override
+	if templateConfig.Override != "" {
+		templates[templateTypeOverride] = templateConfig.Override
 	}
 
 	for name, template := range templates {
@@ -68,40 +66,6 @@ func (g *Generator) Render(titleCtx TitleContext) (string, error) {
 	}
 
 	return buf.String(), nil
-}
-
-func mergeTemplates(userTemplates config.TemplateConfig) config.TemplateConfig {
-	result := config.TemplateConfig{}
-
-	if userTemplates.Movie != "" {
-		result.Movie = userTemplates.Movie
-	} else {
-		result.Movie = defaultTemplates.Movie
-	}
-
-	if userTemplates.Episode != "" {
-		result.Episode = userTemplates.Episode
-	} else {
-		result.Episode = defaultTemplates.Episode
-	}
-
-	if userTemplates.Extra != "" {
-		result.Extra = userTemplates.Extra
-	} else {
-		result.Extra = defaultTemplates.Extra
-	}
-
-	if userTemplates.Unknown != "" {
-		result.Unknown = userTemplates.Unknown
-	} else {
-		result.Unknown = defaultTemplates.Unknown
-	}
-
-	if userTemplates.Override != "" {
-		result.Override = userTemplates.Override
-	}
-
-	return result
 }
 
 type TemplateVars struct {

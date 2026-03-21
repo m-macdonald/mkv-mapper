@@ -20,7 +20,7 @@ type contextKey struct{}
 var AppContextKey = contextKey{}
 
 type AppContext struct {
-	Config *config.Config
+	Config config.Config
 	Logger *zap.SugaredLogger
 }
 
@@ -30,7 +30,7 @@ func BuildServices(ctx AppContext) (*Services, error) {
 		ctx.Logger.Named("makemkv"),
 	)
 
-	cache, err := discdb.NewSQLiteCache("")
+	cache, err := discdb.NewSQLiteCache(ctx.Config.CachePath)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func BuildServices(ctx AppContext) (*Services, error) {
 
 	return &Services{
 		Ripper: ripper,
-		cache: cache,
+		cache:  cache,
 	}, nil
 }
 
