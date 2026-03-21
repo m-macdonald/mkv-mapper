@@ -18,18 +18,18 @@ const (
 
 type TitleInfo struct {
 	parsedLineBase
-	TitleId     uint
+	TitleId     int
 	AttributeId TitleInfoCode
-	Code        uint
+	Code        int
 	Value       string
 }
 
 func (TitleInfo) isParsedLine() {}
 
-type TitleInfoParser struct {}
+type TitleInfoParser struct{}
 
 func (t *TitleInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
-    titleInfo := TitleInfo {}
+	titleInfo := TitleInfo{}
 	titleInfo.raw = raw
 
 	r := csv.NewReader(strings.NewReader(payload))
@@ -39,25 +39,25 @@ func (t *TitleInfoParser) Parse(raw string, payload string) (ParsedLine, error) 
 		return nil, fmt.Errorf("unable to parse line payload %w", err)
 	}
 
-    if titleId, err := strconv.ParseUint(params[0], 10, 0); err == nil {
-        titleInfo.TitleId = uint(titleId)
-    } else {
-		return nil, fmt.Errorf("Unable to parse uint for TitleId %w", err)
-    }
-
-	if attributeId, err := strconv.ParseUint(params[1], 10, 0); err == nil {
-		titleInfo.AttributeId = TitleInfoCode(attributeId) 
+	if titleId, err := strconv.Atoi(params[0]); err == nil {
+		titleInfo.TitleId = titleId
 	} else {
-		return nil, fmt.Errorf("Unable to parse uint for AttributeId %w", err)
+		return nil, fmt.Errorf("unable to parse uint for TitleId %w", err)
 	}
 
-    if code, err := strconv.ParseUint(params[2], 10, 0); err == nil {
-        titleInfo.Code = uint(code)
-    } else {
-		return nil, fmt.Errorf("Unable to parse uint for Code %w", err)
-    }
+	if attributeId, err := strconv.ParseUint(params[1], 10, 0); err == nil {
+		titleInfo.AttributeId = TitleInfoCode(attributeId)
+	} else {
+		return nil, fmt.Errorf("unable to parse uint for AttributeId %w", err)
+	}
 
-    titleInfo.Value = params[3]
+	if code, err := strconv.Atoi(params[2]); err == nil {
+		titleInfo.Code = code
+	} else {
+		return nil, fmt.Errorf("unable to parse uint for Code %w", err)
+	}
 
-    return titleInfo, nil
+	titleInfo.Value = params[3]
+
+	return titleInfo, nil
 }

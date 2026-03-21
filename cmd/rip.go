@@ -16,7 +16,7 @@ var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
 	Long:  `The currently inserted disc is ripped to .mkv files and the resulting files are renamed in accordance with the naming pattern using values from TheDiscDB`,
-	RunE:   runRip,
+	RunE:  runRip,
 }
 
 func init() {
@@ -28,9 +28,14 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if !ok {
 		panic(fmt.Errorf("failed to retrieve app context, unable to continue"))
 	}
-	services := app.BuildServices(ctx)
+	services, err := app.BuildServices(ctx)
+	if err != nil {
+		return err
+	}
+	defer services.Close()
 
 	ripPreview, err := services.Ripper.PreviewRip(
+		cmd.Context(),
 		ctx.Config.DiscRoot,
 		ctx.Config.OutputDir,
 		ctx.Config.Templates)
@@ -48,6 +53,7 @@ func runRip(cmd *cobra.Command, args []string) error {
 
 	// TODO: Log the intended plan steps and any warnings from the ValidationReport
 	err = services.Ripper.ExecuteRip(
+		cmd.Context(),
 		ripPreview.Plan,
 		/* TODO: For now I'm passing this func all the way down to the makemkv package
 		At some point I may add a translation layer so that this func doesn't see the raw MakeMKV lines */

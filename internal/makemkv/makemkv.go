@@ -84,13 +84,14 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 type LineSink func(lines.ParsedLine)
 
 func (c *Client) RipDisc(
+	ctx context.Context,
 	discRoot string,
 	outputDir string,
 	onLine LineSink,
 ) error {
-	ctx, cancel := context.WithCancel(context.Background())
+	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	resultChan := c.runCmd(ctx, "mkv", discRoot, "all", outputDir)
+	resultChan := c.runCmd(cancelCtx, "mkv", discRoot, "all", outputDir)
 
 	for result := range resultChan {
 		if result.Error != nil {
@@ -108,18 +109,18 @@ func (c *Client) RipDisc(
 }
 
 type Title struct {
-	SourceFileName   string
-	OutputFileName   string
+	SourceFilename   string
+	OutputFilename   string
 	SegmentSignature signature.SegmentSignature
-	OutputFileSize   uint
-	TitleId          uint
+	OutputFileSize   uint64
+	TitleId          int
 }
 
-func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Title, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (c *Client) ReadTitles(ctx context.Context, discRoot string) (map[signature.SegmentSignature]Title, error) {
+	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	resultChan := c.runCmd(ctx, "info", discRoot)
-	titles := make(map[uint]Title)
+	resultChan := c.runCmd(cancelCtx, "info", discRoot)
+	titles := make(map[int]Title)
 
 	for result := range resultChan {
 		if result.Error != nil {
@@ -141,9 +142,9 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 
 			switch titleInfo.AttributeId {
 			case lines.TitleInfoCodeSourceFileName:
-				title.SourceFileName = titleInfo.Value
+				title.SourceFilename = titleInfo.Value
 			case lines.TitleInfoCodeOutputFileName:
-				title.OutputFileName = titleInfo.Value
+				title.OutputFilename = titleInfo.Value
 			case lines.TitleInfoCodeSegmentsMap:
 				segmentSignature, err := signature.NormalizeSegments(titleInfo.Value)
 				if err != nil ||
@@ -156,7 +157,7 @@ func (c *Client) ReadTitles(discRoot string) (map[signature.SegmentSignature]Tit
 				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
 				if err != nil {
 				} else {
-					title.OutputFileSize = uint(size)
+					title.OutputFileSize = size
 				}
 			}
 			titles[titleInfo.TitleId] = title
