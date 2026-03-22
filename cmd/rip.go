@@ -29,9 +29,14 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if !ok {
 		panic(fmt.Errorf("failed to retrieve app context, unable to continue"))
 	}
-	services := app.BuildServices(ctx)
+	services, err := app.BuildServices(ctx)
+	if err != nil {
+		return err
+	}
+	defer services.Close()
 
 	ripPreview, err := services.Ripper.PreviewRip(
+		cmd.Context(),
 		ctx.Config.DiscRoot,
 		ctx.Config.OutputDir,
 		ctx.Config.Templates)
@@ -52,6 +57,7 @@ func runRip(cmd *cobra.Command, args []string) error {
 
 	// TODO: Log the intended plan steps and any warnings from the ValidationReport
 	err = services.Ripper.ExecuteRip(
+		cmd.Context(),
 		ripPreview.Plan,
 		func(e event.Event) {
 			err := renderer.HandleEvent(e)

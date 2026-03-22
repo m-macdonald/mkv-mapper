@@ -24,17 +24,17 @@ type TitlePlan struct {
 	SegmentSignature  signature.SegmentSignature
 	MakeMkvOutputFile string
 	FinalName         string
-	EstimatedSize     uint
+	EstimatedSize     uint64
 }
 
 func BuildPlan(
 	discRoot string,
 	outputDir string,
 	templateConfig config.TemplateConfig,
-	disc *discdb.Disc,
+	discRecord *discdb.DiscRecord,
 	titles map[signature.SegmentSignature]makemkv.Title,
 ) (*DiscPlan, *BuildReport, error) {
-	mappings, err := mapper.MapTitles(disc, titles)
+	mappings, err := mapper.MapTitles(discRecord, titles)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
@@ -56,12 +56,18 @@ func BuildPlan(
 	// Track used filenames so that we can resolve conflicts
 	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
-		filenameResolution, err := resolveFilename(filenameGen, disc, mapping, usedNames)
+		titleContext := naming.TitleContext{
+			DiscDbMedia: discRecord.Media,
+			DiscDbTitle: mapping.DiscDbTitle,
+			DiscDbDisc: discRecord.Disc,
+			MakeMkvTitle: mapping.MakeMkvTitle,
+		}
+		filenameResolution, err := resolveFilename(filenameGen, titleContext, usedNames)
 		if err != nil {
 			return nil, report, fmt.Errorf(
 				"failed to resolve filename for makemkv title %d (%s): %w",
 				mapping.MakeMkvTitle.TitleId,
-				mapping.MakeMkvTitle.OutputFileName,
+				mapping.MakeMkvTitle.OutputFilename,
 				err)
 		}
 
@@ -75,8 +81,8 @@ func BuildPlan(
 		}
 
 		plan.Titles = append(plan.Titles, TitlePlan{
-			SourcePlaylist:    mapping.MakeMkvTitle.SourceFileName,
-			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFileName,
+			SourcePlaylist:    mapping.MakeMkvTitle.SourceFilename,
+			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,
 			FinalName:         filenameResolution.FinalName,
 			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
 		})

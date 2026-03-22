@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 
 	"m-macdonald/mkv-mapper/internal/config"
@@ -17,7 +18,7 @@ import (
 
 type Engine struct {
 	makemkv *makemkv.Client
-	discdb  *discdb.Client
+	discdb  *discdb.CachedClient
 	logger  *zap.SugaredLogger
 }
 
@@ -25,7 +26,7 @@ type EngineEventSink func(event.Event)
 
 func New(
 	makemkv *makemkv.Client,
-	discdb *discdb.Client,
+	discdb *discdb.CachedClient,
 	logger *zap.SugaredLogger,
 ) *Engine {
 	return &Engine{
@@ -36,6 +37,7 @@ func New(
 }
 
 func (e *Engine) BuildPlan(
+	ctx context.Context,
 	discRoot string,
 	outputDir string,
 	templateConfig config.TemplateConfig,
@@ -49,12 +51,12 @@ func (e *Engine) BuildPlan(
 		return nil, nil, fmt.Errorf("unable to hash disc %w", err)
 	}
 
-	disc, err := e.discdb.GetDisc(hash)
+	disc, err := e.discdb.LookupDisc(ctx, hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
 	}
 
-	titles, err := e.makemkv.ReadTitles(root)
+	titles, err := e.makemkv.ReadTitles(ctx, root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
@@ -67,12 +69,20 @@ func (e *Engine) ValidatePlan(plan *planner.DiscPlan) *ValidationReport {
 	return ValidatePlan(plan)
 }
 
-func (e *Engine) RunPlan(plan *planner.DiscPlan, onLine EngineEventSink) error {
-	err := e.makemkv.RipDisc(plan.DiscRoot, plan.OutputDir, func(pl lines.ParsedLine) {
-		if event, ok := event.ParsedLineToEvent(pl); ok {
-			onLine(event)
-		}
-	})
+func (e *Engine) RunPlan(
+	ctx context.Context,
+	plan *planner.DiscPlan,
+	onEvent EngineEventSink,
+) error {
+	err := e.makemkv.RipDisc(
+		ctx,
+		plan.DiscRoot,
+		plan.OutputDir,
+		func(pl lines.ParsedLine) {
+			if event, ok := event.ParsedLineToEvent(pl); ok {
+				onEvent(event)
+			}
+		})
 	if err != nil {
 		return err
 	}

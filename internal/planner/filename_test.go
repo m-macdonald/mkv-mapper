@@ -7,7 +7,7 @@ func TestEnsureUniqueFilename(t *testing.T) {
 		name    string
 		base    string
 		ext     string
-		titleId uint
+		titleId int
 		used    map[string]struct{}
 		want    string
 	}{

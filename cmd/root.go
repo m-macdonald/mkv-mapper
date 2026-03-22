@@ -64,12 +64,11 @@ func initContext(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	println(fmt.Sprintf("%v", config))
+
 	logger, err := initLogger()
 	if err != nil {
 		return err
 	}
-	defer logger.Sync()
 
 	appContext := app.AppContext{
 		Config: config,
@@ -84,23 +83,23 @@ func initContext(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func initConfig() (*config.Config, error) {
+func initConfig() (config.Config, error) {
 	viper.SetConfigFile(cfgFile)
 
 	viper.SetEnvPrefix("MKVMAP")
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read config file %s %w", cfgFile, err)
+		return config.Config{}, fmt.Errorf("failed to read config file %s %w", cfgFile, err)
 	}
 
 	var cfg config.Config
 	err := viper.Unmarshal(&cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config %w", err)
+		return config.Config{}, fmt.Errorf("failed to unmarshal config %w", err)
 	}
 
-	return &cfg, nil
+	return config.ResolveConfig(config.DefaultConfig(), cfg)
 }
 
 func initLogger() (*zap.SugaredLogger, error) {

@@ -5,7 +5,7 @@ type BuildReport struct {
 }
 
 type PlanWarning struct {
-	TitleId uint
+	TitleId int
 	Code    WarningCode
 	Message string
 	Cause   error
