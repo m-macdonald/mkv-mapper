@@ -214,8 +214,8 @@ func (r *Renderer) clearStatus() error {
 
 func (r *Renderer) statusLines() []string {
 	return []string{
-		fmt.Sprintf("Task:		%s", r.currentMessage),
-		fmt.Sprintf("Current:	%5.1f%%", r.currentPercent),
+		fmt.Sprintf("Task:		%s", r.totalMessage),
+		fmt.Sprintf("Current:	%5.1f%% %s", r.currentPercent, r.currentMessage),
 		fmt.Sprintf("Total:		%5.1f%%", r.totalPercent),
 	}
 }
