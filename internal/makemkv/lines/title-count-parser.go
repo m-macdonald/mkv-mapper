@@ -1,7 +1,6 @@
 package lines
 
 import (
-    "strings"
     "strconv"
 )
 
@@ -16,14 +15,14 @@ func (TitleCount) isParsedLine() {}
 
 type TitleCountParser struct {}
 
-func (t *TitleCountParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (t *TitleCountParser) Parse(raw string, params []string) (ParsedLine, error) {
     titleCount := TitleCount {}
-    params := strings.Split(payload, COMMA)
+	titleCount.raw = raw
 
     if count, err := strconv.Atoi(params[0]); err == nil {
         titleCount.Count = count
     } else {
-        //error handling
+		return nil, err
     }
 
     return titleCount, nil

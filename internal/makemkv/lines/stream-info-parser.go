@@ -1,7 +1,6 @@
 package lines
 
 import (
-    "strings"
     "strconv"
 )
 
@@ -18,22 +17,20 @@ func (StreamInfo) isParsedLine() {}
 
 type StreamInfoParser struct {}
 
-func (s *StreamInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (s *StreamInfoParser) Parse(raw string, params []string) (ParsedLine, error) {
     streamInfo := StreamInfo {}
 	streamInfo.raw = raw
-
-    params := strings.Split(payload, COMMA)
 
     if id, err := strconv.Atoi(params[0]); err == nil {
         streamInfo.Id = id
     } else {
-        //error handling
+		return nil, err
     }
 
     if code, err := strconv.Atoi(params[1]); err == nil {
         streamInfo.Code = code
     } else {
-        //error handling
+		return nil, err
     }
 
     streamInfo.Value = params[2]
