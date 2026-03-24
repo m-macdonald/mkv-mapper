@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+
 	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
@@ -48,7 +49,7 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if len(ripPreview.ValidationReport.Errors) > 0 {
 		// TODO: Handle the potentially multiple errors within ValidationReport
 		for _, err := range ripPreview.ValidationReport.Errors {
-			ctx.Logger.Error(err)
+			services.Logger.Error(err)
 		}
 		return fmt.Errorf("validation failed")
 	}
@@ -64,7 +65,7 @@ func runRip(cmd *cobra.Command, args []string) error {
 		func(e event.Event) {
 			err := renderer.HandleEvent(e)
 			if err != nil {
-				ctx.Logger.Warnw("renderer failed", "error", err)
+				services.Logger.Warnw("renderer failed", "error", err)
 			}
 		})
 	if err != nil {
