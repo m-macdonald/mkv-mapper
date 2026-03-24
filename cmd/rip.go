@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/event"
@@ -52,7 +53,8 @@ func runRip(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed")
 	}
 
-	renderer := event.NewRenderer(os.Stdout)
+	interactive := detectInteractiveOutput(os.Stdout)
+	renderer := event.NewRenderer(os.Stdout, interactive)
 	defer renderer.Close()
 
 	// TODO: Log the intended plan steps and any warnings from the ValidationReport
@@ -70,4 +72,9 @@ func runRip(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// TODO: Centralize this check when multiple commands are implemented
+func detectInteractiveOutput(out *os.File) bool {
+	return term.IsTerminal(int(out.Fd()))
 }

@@ -75,10 +75,10 @@ type Renderer struct {
 	statusLineCount int
 }
 
-func NewRenderer(out io.Writer) *Renderer {
+func NewRenderer(out io.Writer, interactive bool) *Renderer {
 	return &Renderer{
 		out:         out,
-		interactive: true,
+		interactive: interactive,
 	}
 }
 
@@ -104,7 +104,7 @@ func (r *Renderer) handleMessage(ev MessageEvent) error {
 		}
 	}
 
-	if _, err := fmt.Fprintf(r.out, ev.Message+"\n"); err != nil {
+	if _, err := fmt.Fprint(r.out, ev.Message+"\n"); err != nil {
 		return err
 	}
 
@@ -137,7 +137,7 @@ func (r *Renderer) handleProgressCurrent(ev ProgressCurrentEvent) error {
 }
 
 func (r *Renderer) handleProgressTotal(ev ProgressTotalEvent) error {
-	if r.interactive {
+	if !r.interactive {
 		return nil
 	}
 
