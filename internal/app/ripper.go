@@ -6,7 +6,6 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
-	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/planner"
 
 	"go.uber.org/zap"
@@ -54,24 +53,7 @@ func (r *Ripper) PreviewRip(
 func (r *Ripper) ExecuteRip(
 	ctx context.Context,
 	plan *planner.DiscPlan,
-	onLine makemkv.LineSink,
+	onEvent engine.EngineEventSink,
 ) error {
-	return r.engine.RunPlan(ctx, plan, onLine)
+	return r.engine.RunPlan(ctx, plan, onEvent)
 }
-
-// func (r *Ripper) RipDisc(
-// 	discRoot string,
-// 	outputDir string,
-// 	templates config.TemplateConfig,
-// ) (*RipResult, error) {
-// 	ripResult := &RipResult{
-// 		Preview: &RipPreview{},
-// 	}
-// 	ripResult.Preview.BuildReport = buildReport
-//
-// 	// TODO: Log plan and build report
-// 	ripResult.Preview.ValidationReport = validationReport
-//
-//
-// 	return ripResult, nil
-// }

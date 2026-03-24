@@ -1,8 +1,7 @@
 package lines
 
 import (
-    "strings"
-    "strconv"
+	"strconv"
 )
 
 // Messages in the format
@@ -18,22 +17,20 @@ func (DiscInfo) isParsedLine() {}
 
 type DiscInfoParser struct {}
 
-func (d *DiscInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (d *DiscInfoParser) Parse(raw string, params []string) (ParsedLine, error) {
     discInfo := DiscInfo {}
 	discInfo.raw = raw
-
-    params := strings.Split(payload, COMMA)
 
     if id, err := strconv.Atoi(params[0]); err == nil {
         discInfo.Id = id
     } else {
-        //error handling
+		return nil, err
     }
 
     if code, err := strconv.Atoi(params[1]); err == nil {
         discInfo.Code = code
     } else {
-        //error handling
+		return nil, err
     }
 
     discInfo.Value = params[2]

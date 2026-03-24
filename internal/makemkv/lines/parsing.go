@@ -1,6 +1,7 @@
 package lines
 
 import (
+	"encoding/csv"
 	"fmt"
 	"strings"
 )
@@ -27,7 +28,7 @@ type LineProcessor struct {
 }
 
 type LineParser interface {
-	Parse(raw string, payload string) (ParsedLine, error)
+	Parse(raw string, params []string) (ParsedLine, error)
 }
 
 func NewLineProcessor() *LineProcessor {
@@ -52,10 +53,26 @@ func (p *LineProcessor) ProcessLine(line string) (ParsedLine, error) {
 		return nil, fmt.Errorf("invalid line: %s", line)
 	}
 
+	params, err := splitCsv(payload)
+	if err != nil {
+		return nil, err
+	}
+
 	parser, exists := p.parsers[prefix]
 	if !exists {
 		return nil, fmt.Errorf("no parser for prefix: %s", prefix)
 	}
 
-	return parser.Parse(line, payload)
+	return parser.Parse(line, params)
+}
+
+func splitCsv(payload string) ([]string, error) {
+	r := csv.NewReader(strings.NewReader(payload))
+	r.LazyQuotes = true
+	params, err := r.Read()
+	if err != nil {
+		return nil, fmt.Errorf("split csv: %w", err)
+	}
+
+	return params, nil
 }

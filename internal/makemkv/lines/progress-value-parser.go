@@ -2,7 +2,6 @@ package lines
 
 import (
 	"strconv"
-	"strings"
 )
 
 type ProgressValue struct {
@@ -32,11 +31,9 @@ func (p *ProgressValue) TotalPercent() float64 {
 
 type ProgressValueParser struct{}
 
-func (p *ProgressValueParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (p *ProgressValueParser) Parse(raw string, params []string) (ParsedLine, error) {
 	progressValue := ProgressValue{}
 	progressValue.raw = raw
-
-	params := strings.Split(payload, COMMA)
 
 	if current, err := strconv.ParseUint(params[0], 10, 64); err == nil {
 		progressValue.Current = current

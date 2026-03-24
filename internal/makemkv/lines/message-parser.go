@@ -2,7 +2,6 @@ package lines
 
 import (
 	"strconv"
-	"strings"
 )
 
 type Message struct {
@@ -19,11 +18,9 @@ func (Message) isParsedLine() {}
 
 type MessageParser struct{}
 
-func (m *MessageParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (m *MessageParser) Parse(raw string, params []string) (ParsedLine, error) {
 	message := Message{}
 	message.raw = raw
-
-	params := strings.Split(payload, COMMA)
 
 	message.Code = params[0]
 	if flags, err := strconv.Atoi(params[1]); err == nil {

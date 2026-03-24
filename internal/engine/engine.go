@@ -6,8 +6,10 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
+	"m-macdonald/mkv-mapper/internal/event"
 	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/planner"
 
@@ -19,6 +21,8 @@ type Engine struct {
 	discdb  *discdb.CachedClient
 	logger  *zap.SugaredLogger
 }
+
+type EngineEventSink func(event.Event)
 
 func New(
 	makemkv *makemkv.Client,
@@ -68,9 +72,17 @@ func (e *Engine) ValidatePlan(plan *planner.DiscPlan) *ValidationReport {
 func (e *Engine) RunPlan(
 	ctx context.Context,
 	plan *planner.DiscPlan,
-	onLine makemkv.LineSink,
+	onEvent EngineEventSink,
 ) error {
-	err := e.makemkv.RipDisc(ctx, plan.DiscRoot, plan.OutputDir, onLine)
+	err := e.makemkv.RipDisc(
+		ctx,
+		plan.DiscRoot,
+		plan.OutputDir,
+		func(pl lines.ParsedLine) {
+			if event, ok := event.ParsedLineToEvent(pl); ok {
+				onEvent(event)
+			}
+		})
 	if err != nil {
 		return err
 	}

@@ -1,10 +1,8 @@
 package lines
 
 import (
-	"encoding/csv"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 type TitleInfoCode uint
@@ -28,16 +26,9 @@ func (TitleInfo) isParsedLine() {}
 
 type TitleInfoParser struct{}
 
-func (t *TitleInfoParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (t *TitleInfoParser) Parse(raw string, params []string) (ParsedLine, error) {
 	titleInfo := TitleInfo{}
 	titleInfo.raw = raw
-
-	r := csv.NewReader(strings.NewReader(payload))
-	r.LazyQuotes = true
-	params, err := r.Read()
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse line payload %w", err)
-	}
 
 	if titleId, err := strconv.Atoi(params[0]); err == nil {
 		titleInfo.TitleId = titleId

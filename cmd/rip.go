@@ -5,9 +5,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/event"
 
 	"github.com/spf13/cobra"
 )
@@ -51,18 +53,28 @@ func runRip(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed")
 	}
 
+	interactive := detectInteractiveOutput(os.Stdout)
+	renderer := event.NewRenderer(os.Stdout, interactive)
+	defer renderer.Close()
+
 	// TODO: Log the intended plan steps and any warnings from the ValidationReport
 	err = services.Ripper.ExecuteRip(
 		cmd.Context(),
 		ripPreview.Plan,
-		/* TODO: For now I'm passing this func all the way down to the makemkv package
-		At some point I may add a translation layer so that this func doesn't see the raw MakeMKV lines */
-		func(pl lines.ParsedLine) {
-			ctx.Logger.Infoln(pl.Raw())
+		func(e event.Event) {
+			err := renderer.HandleEvent(e)
+			if err != nil {
+				ctx.Logger.Warnw("renderer failed", "error", err)
+			}
 		})
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// TODO: Centralize this check when multiple commands are implemented
+func detectInteractiveOutput(out *os.File) bool {
+	return term.IsTerminal(int(out.Fd()))
 }

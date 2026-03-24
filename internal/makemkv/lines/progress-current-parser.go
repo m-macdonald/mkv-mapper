@@ -1,7 +1,6 @@
 package lines
 
 import (
-    "strings"
     "strconv"
 )
 
@@ -16,11 +15,9 @@ func (ProgressCurrent) isParsedLine() {}
 
 type ProgressCurrentParser struct {}
 
-func (p *ProgressCurrentParser) Parse(raw string, payload string) (ParsedLine, error) {
+func (p *ProgressCurrentParser) Parse(raw string, params []string) (ParsedLine, error) {
     progressCurrent := ProgressCurrent {}
 	progressCurrent.raw = raw
-
-    params := strings.Split(payload, COMMA)
 
     progressCurrent.Code = params[0]
     if id, err := strconv.Atoi(params[1]); err == nil {
