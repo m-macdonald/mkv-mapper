@@ -57,20 +57,3 @@ func (r *Ripper) ExecuteRip(
 ) error {
 	return r.engine.RunPlan(ctx, plan, onEvent)
 }
-
-// func (r *Ripper) RipDisc(
-// 	discRoot string,
-// 	outputDir string,
-// 	templates config.TemplateConfig,
-// ) (*RipResult, error) {
-// 	ripResult := &RipResult{
-// 		Preview: &RipPreview{},
-// 	}
-// 	ripResult.Preview.BuildReport = buildReport
-//
-// 	// TODO: Log plan and build report
-// 	ripResult.Preview.ValidationReport = validationReport
-//
-//
-// 	return ripResult, nil
-// }

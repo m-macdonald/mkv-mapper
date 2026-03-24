@@ -3,8 +3,9 @@ package event
 import (
 	"fmt"
 	"io"
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"strings"
+
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 )
 
 type Event interface {
@@ -17,19 +18,39 @@ type MessageEvent struct {
 
 func (MessageEvent) isEvent() {}
 
-type ProgressEvent struct {
+type ProgressPercentEvent struct {
 	CurrentPercent float64
 	TotalPercent   float64
 }
 
-func (ProgressEvent) isEvent() {}
+func (ProgressPercentEvent) isEvent() {}
+
+type ProgressCurrentEvent struct {
+	Message string
+}
+
+func (ProgressCurrentEvent) isEvent() {}
+
+type ProgressTotalEvent struct {
+	Message string
+}
+
+func (ProgressTotalEvent) isEvent() {}
 
 func ParsedLineToEvent(line lines.ParsedLine) (Event, bool) {
 	switch l := line.(type) {
 	case lines.ProgressValue:
-		return ProgressEvent{
+		return ProgressPercentEvent{
 			TotalPercent:   l.TotalPercent(),
 			CurrentPercent: l.CurrentPercent(),
+		}, true
+	case lines.ProgressCurrent:
+		return ProgressCurrentEvent{
+			Message: l.Name,
+		}, true
+	case lines.ProgressTitle:
+		return ProgressTotalEvent{
+			Message: l.Name,
 		}, true
 	case lines.Message:
 		return MessageEvent{
@@ -41,21 +62,22 @@ func ParsedLineToEvent(line lines.ParsedLine) (Event, bool) {
 }
 
 type Renderer struct {
-	out io.Writer
+	out         io.Writer
 	interactive bool
 
 	currentPercent float64
-	totalPercent float64
+	totalPercent   float64
 
-	// currentMessage string
-	totalMessage string
+	currentMessage string
+	totalMessage   string
 
-	statusVisible bool
+	statusVisible   bool
+	statusLineCount int
 }
 
 func NewRenderer(out io.Writer) *Renderer {
 	return &Renderer{
-		out: out,
+		out:         out,
 		interactive: true,
 	}
 }
@@ -63,11 +85,13 @@ func NewRenderer(out io.Writer) *Renderer {
 func (r *Renderer) HandleEvent(ev Event) error {
 	switch e := ev.(type) {
 	case MessageEvent:
-		fmt.Printf("message")
 		return r.handleMessage(e)
-	case ProgressEvent:
-		fmt.Printf("progress")
-		return r.handleProgress(e)
+	case ProgressPercentEvent:
+		return r.handleProgressPercent(e)
+	case ProgressCurrentEvent:
+		return r.handleProgressCurrent(e)
+	case ProgressTotalEvent:
+		return r.handleProgressTotal(e)
 	default:
 		return nil
 	}
@@ -80,7 +104,7 @@ func (r *Renderer) handleMessage(ev MessageEvent) error {
 		}
 	}
 
-	if _, err := fmt.Fprintf(r.out, ev.Message); err != nil {
+	if _, err := fmt.Fprintf(r.out, ev.Message+"\n"); err != nil {
 		return err
 	}
 
@@ -91,13 +115,33 @@ func (r *Renderer) handleMessage(ev MessageEvent) error {
 	return nil
 }
 
-func (r *Renderer) handleProgress(ev ProgressEvent) error {
+func (r *Renderer) handleProgressPercent(ev ProgressPercentEvent) error {
 	if !r.interactive {
 		return nil
 	}
 
 	r.currentPercent = ev.CurrentPercent
 	r.totalPercent = ev.TotalPercent
+
+	return r.redrawStatus()
+}
+
+func (r *Renderer) handleProgressCurrent(ev ProgressCurrentEvent) error {
+	if !r.interactive {
+		return nil
+	}
+
+	r.currentMessage = ev.Message
+
+	return r.redrawStatus()
+}
+
+func (r *Renderer) handleProgressTotal(ev ProgressTotalEvent) error {
+	if r.interactive {
+		return nil
+	}
+
+	r.totalMessage = ev.Message
 
 	return r.redrawStatus()
 }
@@ -115,7 +159,7 @@ func (r *Renderer) hasStatusContent() bool {
 }
 
 func (r *Renderer) redrawStatus() error {
-	block := r.statusBlock()
+	statusLines := r.statusLines()
 
 	if r.statusVisible {
 		if err := r.clearStatus(); err != nil {
@@ -123,11 +167,12 @@ func (r *Renderer) redrawStatus() error {
 		}
 	}
 
-	if _, err := fmt.Fprint(r.out, block); err != nil {
+	if _, err := fmt.Fprintln(r.out, strings.Join(statusLines, "\n")); err != nil {
 		return err
 	}
 
 	r.statusVisible = true
+	r.statusLineCount = len(statusLines)
 
 	return nil
 }
@@ -137,41 +182,40 @@ func (r *Renderer) clearStatus() error {
 		return nil
 	}
 
-	// Move the cursor up 3 lines
-	if _, err := fmt.Fprint(r.out, "\033[3A"); err != nil {
+	// Move the cursor to the top of the status block
+	if _, err := fmt.Fprintf(r.out, "\033[%dA", r.statusLineCount); err != nil {
 		return err
 	}
 
-	// Clear terminal output moving down a total of 4 lines
-	for i := range [3]int{} {
+	for i := range r.statusLineCount {
+		// Clear the cursor's current line
 		if _, err := fmt.Fprintf(r.out, "\r\033[K"); err != nil {
 			return err
 		}
 
-		if i < 2 {
-			if _, err := fmt.Fprintf(r.out, "\033[1B"); err != nil {
+		if i < r.statusLineCount-1 {
+			// Move cursor down a line
+			if _, err := fmt.Fprint(r.out, "\033[1B"); err != nil {
 				return err
 			}
 		}
 	}
 
-	if _, err := fmt.Fprintf(r.out, "\033[2A"); err != nil {
+	// Move the cursor back to top of cleared lines
+	if _, err := fmt.Fprintf(r.out, "\033[%dA", r.statusLineCount-1); err != nil {
 		return err
 	}
 
 	r.statusVisible = false
+	r.statusLineCount = 0
 
 	return nil
 }
 
-func (r *Renderer) statusBlock() string {
-	lines := []string{
-		fmt.Sprintf("Task:		%s", r.totalMessage),
+func (r *Renderer) statusLines() []string {
+	return []string{
+		fmt.Sprintf("Task:		%s", r.currentMessage),
 		fmt.Sprintf("Current:	%5.1f%%", r.currentPercent),
 		fmt.Sprintf("Total:		%5.1f%%", r.totalPercent),
 	}
-
-	return strings.Join(lines, "\n") + "\n"
 }
-
-
