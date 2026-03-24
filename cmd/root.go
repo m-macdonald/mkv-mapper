@@ -13,8 +13,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -65,14 +63,8 @@ func initContext(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	logger, err := initLogger()
-	if err != nil {
-		return err
-	}
-
 	appContext := app.AppContext{
 		Config: config,
-		Logger: logger,
 	}
 
 	ctx := context.Background()
@@ -100,17 +92,4 @@ func initConfig() (config.Config, error) {
 	}
 
 	return config.ResolveConfig(config.DefaultConfig(), cfg)
-}
-
-func initLogger() (*zap.SugaredLogger, error) {
-	logLevelStr := viper.GetString(config.LogLevel)
-	logLevel, err := zapcore.ParseLevel(logLevelStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse log level from given value: %s", logLevelStr)
-	}
-	loggerConfig := zap.NewProductionConfig()
-	loggerConfig.Level = zap.NewAtomicLevelAt(logLevel)
-
-	// Sugaring the logger by default as this is code is not performance critical
-	return zap.Must(loggerConfig.Build()).Sugar(), nil
 }
