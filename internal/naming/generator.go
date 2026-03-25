@@ -11,7 +11,11 @@ import (
 	"m-macdonald/mkv-mapper/internal/makemkv"
 )
 
-type Generator struct {
+type filenameGenerator interface {
+	Generate(titleCtx TitleContext) (string, error)
+}
+
+type FilenameGenerator struct {
 	templates *template.Template
 }
 
@@ -22,7 +26,7 @@ type TitleContext struct {
 	MakeMkvTitle makemkv.Title
 }
 
-func NewGenerator(templateConfig config.TemplateConfig) (*Generator, error) {
+func NewFilenameGenerator(templateConfig config.TemplateConfig) (*FilenameGenerator, error) {
 	rootTemplate := template.New("root").
 		Funcs(templateFuncs()).
 		Option("missingkey=error")
@@ -44,10 +48,10 @@ func NewGenerator(templateConfig config.TemplateConfig) (*Generator, error) {
 		}
 	}
 
-	return &Generator{templates: rootTemplate}, nil
+	return &FilenameGenerator{templates: rootTemplate}, nil
 }
 
-func (g *Generator) Render(titleCtx TitleContext) (string, error) {
+func (f *FilenameGenerator) Generate(titleCtx TitleContext) (string, error) {
 	templateType := templateTypeUnknown
 	if item, ok := titleCtx.DiscDbTitle.ItemValue(); ok {
 		templateType = templateTypeFromItemType(item.Type)
@@ -55,12 +59,12 @@ func (g *Generator) Render(titleCtx TitleContext) (string, error) {
 
 	vars := buildTemplateVars(titleCtx)
 
-	if g.templates.Lookup(string(templateTypeOverride)) != nil {
+	if f.templates.Lookup(string(templateTypeOverride)) != nil {
 		templateType = templateTypeOverride
 	}
 
 	var buf bytes.Buffer
-	err := g.templates.ExecuteTemplate(&buf, string(templateType), vars)
+	err := f.templates.ExecuteTemplate(&buf, string(templateType), vars)
 	if err != nil {
 		return "", err
 	}
@@ -148,17 +152,21 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 
 func templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"pad": func(padCnt uint, val string) string {
-			return fmt.Sprintf("%0*s", padCnt, val)
-		},
+		"pad": pad,
 		"upper": strings.ToUpper,
 		"lower": strings.ToLower,
-		"dflt": func(dflt string, val string) string {
-			if strings.TrimSpace(val) == "" {
-				return dflt
-			}
-
-			return val
-		},
+		"dflt": dflt,
 	}
+}
+
+func pad(padCnt int, val string) string {
+	return fmt.Sprintf("%0*s", padCnt, val)
+}
+
+func dflt(dflt string, val string) string {
+	if strings.TrimSpace(val) == "" {
+		return dflt
+	}
+
+	return val
 }

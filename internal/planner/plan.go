@@ -39,7 +39,7 @@ func BuildPlan(
 		return nil, nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
 
-	filenameGen, err := naming.NewGenerator(templateConfig)
+	filenameGen, err := naming.NewFilenameGenerator(templateConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,7 +62,7 @@ func BuildPlan(
 			DiscDbDisc: discRecord.Disc,
 			MakeMkvTitle: mapping.MakeMkvTitle,
 		}
-		filenameResolution, err := resolveFilename(filenameGen, titleContext, usedNames)
+		filenameResolution, err := naming.ResolveFilename(filenameGen, titleContext, usedNames)
 		if err != nil {
 			return nil, report, fmt.Errorf(
 				"failed to resolve filename for makemkv title %d (%s): %w",
@@ -74,7 +74,8 @@ func BuildPlan(
 		for _, event := range filenameResolution.Events {
 			report.Warnings = append(report.Warnings, PlanWarning{
 				TitleId: mapping.MakeMkvTitle.TitleId,
-				Code:    event.Code,
+				// TODO: Translate this better
+				Code:    WarningCode(event.Code),
 				Message: event.Message,
 				Cause:   event.Cause,
 			})

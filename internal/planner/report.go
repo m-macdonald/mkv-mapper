@@ -12,8 +12,3 @@ type PlanWarning struct {
 }
 
 type WarningCode string
-
-const (
-	WarningNamingFallback   WarningCode = "naming_fallback"
-	WarningFilenameSuffixed WarningCode = "filename_suffixed"
-)
