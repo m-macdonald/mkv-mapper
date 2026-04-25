@@ -41,37 +41,37 @@ func (e *Engine) BuildPlan(
 	discRoot string,
 	outputDir string,
 	templateConfig config.TemplateConfig,
-) (*planner.DiscPlan, *planner.BuildReport, error) {
+) (planner.DiscPlan, planner.BuildReport, error) {
 	root, err := files.ResolveDiscRoot(discRoot)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to find disc root %w", err)
+		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("unable to find disc root %w", err)
 	}
 	hash, err := files.Hash(root)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to hash disc %w", err)
+		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("unable to hash disc %w", err)
 	}
 
 	disc, err := e.discdb.LookupDisc(ctx, hash)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
+		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
 	}
 
 	titles, err := e.makemkv.ReadTitles(ctx, root)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
+		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
 
 	return planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
 }
 
 // TODO: Move validation into a separate package?
-func (e *Engine) ValidatePlan(plan *planner.DiscPlan) *ValidationReport {
+func (e *Engine) ValidatePlan(plan planner.DiscPlan) ValidationReport {
 	return ValidatePlan(plan)
 }
 
 func (e *Engine) RunPlan(
 	ctx context.Context,
-	plan *planner.DiscPlan,
+	plan planner.DiscPlan,
 	onEvent EngineEventSink,
 ) error {
 	err := e.makemkv.RipDisc(

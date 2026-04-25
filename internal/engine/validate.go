@@ -40,7 +40,7 @@ const (
 	ValidationOutputDirInvalid ValidationCode = "output_dir_invalid"
 )
 
-func ValidatePlan(plan *planner.DiscPlan) *ValidationReport {
+func ValidatePlan(plan planner.DiscPlan) ValidationReport {
 	report := &ValidationReport{
 		Errors:   make([]ValidationIssue, 0),
 		Warnings: make([]ValidationIssue, 0),
@@ -50,10 +50,10 @@ func ValidatePlan(plan *planner.DiscPlan) *ValidationReport {
 	validateDiskSpace(plan, report)
 	validateExistingFiles(plan, report)
 
-	return report
+	return *report
 }
 
-func validateOutputDir(plan *planner.DiscPlan, report *ValidationReport) {
+func validateOutputDir(plan planner.DiscPlan, report *ValidationReport) {
 	info, err := os.Stat(plan.OutputDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -83,7 +83,7 @@ func validateOutputDir(plan *planner.DiscPlan, report *ValidationReport) {
 	}
 }
 
-func validateDiskSpace(plan *planner.DiscPlan, report *ValidationReport) {
+func validateDiskSpace(plan planner.DiscPlan, report *ValidationReport) {
 	free, err := files.GetFreeDiskSpace(plan.OutputDir)
 	if err != nil {
 		report.AddError(ValidationIssue{
@@ -110,7 +110,7 @@ func validateDiskSpace(plan *planner.DiscPlan, report *ValidationReport) {
 	}
 }
 
-func validateExistingFiles(plan *planner.DiscPlan, report *ValidationReport) {
+func validateExistingFiles(plan planner.DiscPlan, report *ValidationReport) {
 	for _, title := range plan.Titles {
 		outPath := filepath.Join(plan.OutputDir, title.FinalName)
 

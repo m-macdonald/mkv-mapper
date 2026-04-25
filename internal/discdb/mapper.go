@@ -63,7 +63,7 @@ const (
 	ItemTypeTrailer      ItemType = "Trailer"
 )
 
-func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHash string) (*DiscRecord, error) {
+func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHash string) (DiscRecord, error) {
 	var matchedRelease *ReleaseResponse
 	var matchedDisc *DiscResponse
 
@@ -81,7 +81,7 @@ func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHas
 			// Will this require allowing the user to select from the matches?
 			// Might be able to compare the segment maps to those reported by makemkv to find a unique match
 			if matchedDisc != nil || matchedRelease != nil {
-				return nil, fmt.Errorf("multiple matching discs found for hash %s", discHash)
+				return DiscRecord{}, fmt.Errorf("multiple matching discs found for hash %s", discHash)
 			}
 
 			matchedDisc = disc
@@ -90,10 +90,10 @@ func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHas
 	}
 
 	if matchedDisc == nil || matchedRelease == nil {
-		return nil, fmt.Errorf("no matching disc found for hash %s", discHash)
+		return DiscRecord{}, fmt.Errorf("no matching disc found for hash %s", discHash)
 	}
 
-	return &DiscRecord{
+	return DiscRecord{
 		Media: Media{
 			Title: mediaItemResponse.Title,
 			Year:  mediaItemResponse.Year,

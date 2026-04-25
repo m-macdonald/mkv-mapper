@@ -17,9 +17,9 @@ type Ripper struct {
 }
 
 type RipPreview struct {
-	Plan             *planner.DiscPlan
-	BuildReport      *planner.BuildReport
-	ValidationReport *engine.ValidationReport
+	Plan             planner.DiscPlan
+	BuildReport      planner.BuildReport
+	ValidationReport engine.ValidationReport
 }
 
 type ExecutionReport struct{}
@@ -52,7 +52,7 @@ func (r *Ripper) PreviewRip(
 
 func (r *Ripper) ExecuteRip(
 	ctx context.Context,
-	plan *planner.DiscPlan,
+	plan planner.DiscPlan,
 	onEvent engine.EngineEventSink,
 ) error {
 	return r.engine.RunPlan(ctx, plan, onEvent)
