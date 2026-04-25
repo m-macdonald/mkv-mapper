@@ -106,11 +106,11 @@ type TemplateTitle struct {
 }
 
 type TemplateMakeMkvTitle struct {
-	TitleId          int
-	OutputFilename   string
-	SourceFilename   string
-	SegmentSignature string
-	OutputFileSize   uint64
+	TitleId        int
+	OutputFilename string
+	SourceFilename string
+	Segments       string
+	OutputFileSize uint64
 }
 
 func buildTemplateVars(titleCtx TitleContext) TemplateVars {
@@ -136,11 +136,11 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 			SourceFile:  titleCtx.DiscDbTitle.SourceFile,
 		},
 		MakeMkv: TemplateMakeMkvTitle{
-			TitleId:          titleCtx.MakeMkvTitle.TitleId,
-			OutputFilename:   titleCtx.MakeMkvTitle.OutputFilename,
-			SourceFilename:   titleCtx.MakeMkvTitle.SourceFilename,
-			SegmentSignature: string(titleCtx.MakeMkvTitle.SegmentSignature),
-			OutputFileSize:   titleCtx.MakeMkvTitle.OutputFileSize,
+			TitleId:        titleCtx.MakeMkvTitle.TitleId,
+			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
+			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
+			Segments:       string(titleCtx.MakeMkvTitle.Segments),
+			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 
 		Season:       item.Season,
@@ -152,10 +152,10 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 
 func templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"pad": pad,
+		"pad":   pad,
 		"upper": strings.ToUpper,
 		"lower": strings.ToLower,
-		"dflt": dflt,
+		"dflt":  dflt,
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
-	"m-macdonald/mkv-mapper/internal/signature"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -42,11 +41,11 @@ func TestResolveFilename(t *testing.T) {
 		},
 		DiscDbDisc: discdb.Disc{},
 		MakeMkvTitle: makemkv.Title{
-			SourceFilename:   "sourceFilename.mpls",
-			OutputFilename:   "outputFilename.mkv",
-			SegmentSignature: signature.SegmentSignature(""),
-			OutputFileSize:   123456789,
-			TitleId:          1,
+			SourceFilename: "sourceFilename.mpls",
+			OutputFilename: "outputFilename.mkv",
+			Segments:       "",
+			OutputFileSize: 123456789,
+			TitleId:        1,
 		},
 	}
 

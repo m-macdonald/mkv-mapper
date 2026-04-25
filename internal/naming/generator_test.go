@@ -6,7 +6,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
-	"m-macdonald/mkv-mapper/internal/signature"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -20,25 +19,23 @@ func TestFilenameGeneratorGenerate(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name:     "uses unknown when title has no item",
+			name: "uses unknown when title has no item",
 			titleCtx: TitleContext{
 				DiscDbTitle: discdb.Title{},
 			},
 			templateCfg: config.TemplateConfig{
-				Unknown: "unknown",	
+				Unknown: "unknown",
 			},
 			want:    "unknown",
-			wantErr:  false,
+			wantErr: false,
 		},
 		{
-			name: "uses override when it exists",
-			titleCtx: TitleContext{
-				
-			},
+			name:     "uses override when it exists",
+			titleCtx: TitleContext{},
 			templateCfg: config.TemplateConfig{
 				Override: "override",
 			},
-			want: "override",
+			want:    "override",
 			wantErr: false,
 		},
 		{
@@ -54,7 +51,7 @@ func TestFilenameGeneratorGenerate(t *testing.T) {
 					},
 				},
 			},
-			want: "episode",
+			want:    "episode",
 			wantErr: false,
 		},
 		{
@@ -83,7 +80,7 @@ func TestFilenameGeneratorGenerate(t *testing.T) {
 			if test.want != got {
 				t.Fatalf("want %q, got %q", test.want, got)
 			}
-		}) 
+		})
 	}
 }
 
@@ -109,11 +106,11 @@ func TestBuildTemplateVars(t *testing.T) {
 			SourceFile:  titleCtx.DiscDbTitle.SourceFile,
 		},
 		MakeMkv: TemplateMakeMkvTitle{
-			TitleId:          titleCtx.MakeMkvTitle.TitleId,
-			OutputFilename:   titleCtx.MakeMkvTitle.OutputFilename,
-			SourceFilename:   titleCtx.MakeMkvTitle.SourceFilename,
-			SegmentSignature: string(titleCtx.MakeMkvTitle.SegmentSignature),
-			OutputFileSize:   titleCtx.MakeMkvTitle.OutputFileSize,
+			TitleId:        titleCtx.MakeMkvTitle.TitleId,
+			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
+			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
+			Segments:       titleCtx.MakeMkvTitle.Segments,
+			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 		Season:       titleCtx.DiscDbTitle.Item.Season,
 		Episode:      titleCtx.DiscDbTitle.Item.Episode,
@@ -225,11 +222,11 @@ func titleContext() TitleContext {
 			},
 		},
 		MakeMkvTitle: makemkv.Title{
-			TitleId:          2,
-			OutputFilename:   "MakeMkvOutputFilename",
-			SourceFilename:   "MakeMkvSourceFilename",
-			SegmentSignature: signature.SegmentSignature("MakeMkvSegmentSignature"),
-			OutputFileSize:   3,
+			TitleId:        2,
+			OutputFilename: "MakeMkvOutputFilename",
+			SourceFilename: "MakeMkvSourceFilename",
+			Segments:       "MakeMkvSegmentSignature",
+			OutputFileSize: 3,
 		},
 	}
 }
