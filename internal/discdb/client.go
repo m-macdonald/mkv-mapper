@@ -13,7 +13,7 @@ import (
 const discDbGraphqlEndpoint = "https://thediscdb.com/graphql"
 
 type Client interface {
-	LookupDisc(ctx context.Context, discHash string) (*DiscRecord, error)
+	LookupDisc(ctx context.Context, discHash string) (DiscRecord, error)
 }
 
 type CachedClient struct {
@@ -28,21 +28,21 @@ func NewCachedClient(cache Cache, client Client) (*CachedClient, error) {
 	}, nil
 }
 
-func (c *CachedClient) LookupDisc(ctx context.Context, discHash string) (*DiscRecord, error) {
+func (c *CachedClient) LookupDisc(ctx context.Context, discHash string) (DiscRecord, error) {
 	if record, ok, err := c.cache.GetDiscRecord(ctx, discHash); err != nil {
-		return nil, fmt.Errorf("disc cache read: %w", err)
+		return DiscRecord{}, fmt.Errorf("disc cache read: %w", err)
 	} else if ok {
 		return record, nil
 	}
 	
 	record, err := c.client.LookupDisc(ctx, discHash)
 	if err != nil {
-		return nil, fmt.Errorf("disc lookup: %w", err) 
+		return DiscRecord{}, fmt.Errorf("disc lookup: %w", err) 
 	}
 
 	err = c.cache.PutDiscRecord(ctx, discHash, record)
 	if err != nil {
-		return nil, fmt.Errorf("disc cache write: %w", err)
+		return DiscRecord{}, fmt.Errorf("disc cache write: %w", err)
 	}
 	
 	return record, nil
@@ -126,7 +126,7 @@ type ItemResponse struct {
 	Type    string `json:"type"`
 }
 
-func (r *RemoteClient) LookupDisc(ctx context.Context, discHash string) (*DiscRecord, error) {
+func (r *RemoteClient) LookupDisc(ctx context.Context, discHash string) (DiscRecord, error) {
 	payload := graphqlPayload{
 		OperationName: "GetDiscByContentHash",
 		Query:         getDiscByContentHash,
@@ -137,49 +137,49 @@ func (r *RemoteClient) LookupDisc(ctx context.Context, discHash string) (*DiscRe
 
 	requestBody, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("marshal graphql payload: %w", err)
+		return DiscRecord{}, fmt.Errorf("marshal graphql payload: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.endpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, fmt.Errorf("build graphql request: %w", err)
+		return DiscRecord{}, fmt.Errorf("build graphql request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	res, err := r.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("execute graphql request: %w", err)
+		return DiscRecord{}, fmt.Errorf("execute graphql request: %w", err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read graphql response: %w", err)
+		return DiscRecord{}, fmt.Errorf("read graphql response: %w", err)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("request to %s returned %s:\n%s", res.Request.URL, res.Status, body)
+		return DiscRecord{}, fmt.Errorf("request to %s returned %s:\n%s", res.Request.URL, res.Status, body)
 	}
 
 	var graphqlResponse graphqlResponse[discDbGraphqlResponse]
 	if err := json.Unmarshal(body, &graphqlResponse); err != nil {
-		return nil, fmt.Errorf("decode graphql response: %w", err)
+		return DiscRecord{}, fmt.Errorf("decode graphql response: %w", err)
 	}
 
 	// TODO: Determine how to return these errors
 	if len(graphqlResponse.Errors) > 0 {
-		return nil, fmt.Errorf("graphql returned errors")
+		return DiscRecord{}, fmt.Errorf("graphql returned errors")
 	}
 
 	mediaItemNodes := graphqlResponse.Data.MediaItems.Nodes
 	switch len(mediaItemNodes) {
 	case 0:
-		return nil, fmt.Errorf("no disc found for hash %s", discHash)
+		return DiscRecord{}, fmt.Errorf("no disc found for hash %s", discHash)
 	case 1:
 		return mediaItemResponseToDiscRecord(&mediaItemNodes[0], discHash)
 	default:
-		return nil, fmt.Errorf("multiple discs found for hash %s", discHash)
+		return DiscRecord{}, fmt.Errorf("multiple discs found for hash %s", discHash)
 	}
 }
 

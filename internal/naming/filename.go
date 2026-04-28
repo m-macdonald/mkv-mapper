@@ -1,11 +1,9 @@
-package planner
+package naming
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	"m-macdonald/mkv-mapper/internal/naming"
 )
 
 const maxUniqueFilenameAttempts = 1000
@@ -21,15 +19,22 @@ type FilenameEvent struct {
 	Cause   error
 }
 
-func resolveFilename(
-	filenameGen *naming.Generator,
-	titleContext naming.TitleContext,
+type WarningCode string
+
+const (
+	WarningNamingFallback   WarningCode = "naming_fallback"
+	WarningFilenameSuffixed WarningCode = "filename_suffixed"
+)
+
+func ResolveFilename(
+	filenameGen filenameGenerator,
+	titleContext TitleContext,
 	used map[string]struct{},
 ) (FilenameResolution, error) {
 	var events []FilenameEvent
 
 	ext := filepath.Ext(titleContext.MakeMkvTitle.OutputFilename)
-	baseName, err := filenameGen.Render(titleContext)
+	baseName, err := filenameGen.Generate(titleContext)
 	if err != nil {
 		baseName = strings.TrimSuffix(titleContext.MakeMkvTitle.OutputFilename, ext)
 		events = append(events, FilenameEvent{
@@ -92,7 +97,7 @@ func ensureUniqueFilename(
 		}
 	}
 
-	return "", true, fmt.Errorf(
+	return "", false, fmt.Errorf(
 		"could not resolve unique filename for title %s after %d attempts",
 		baseName,
 		maxUniqueFilenameAttempts)
