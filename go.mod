@@ -1,18 +1,20 @@
 module m-macdonald/mkv-mapper
 
-go 1.25.0
+go 1.25.7
 
 require (
+	github.com/diskfs/go-diskfs v1.9.3-0.20260512075742-f88dba13d9aa
 	github.com/google/go-cmp v0.7.0
 	github.com/mattn/go-sqlite3 v1.14.34
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/sys v0.42.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.41.0
 )
 
 require (
+	github.com/djherbis/times v1.6.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
