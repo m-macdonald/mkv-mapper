@@ -23,34 +23,34 @@ func Hash(root string) (string, error) {
 	return hasher.Hash()
 }
 
-func newDiscHasher(root string) (DiscHasher, error) {
+func newDiscHasher(root string) (discHasher, error) {
 	info, err := os.Stat(root)
 	if err != nil {
 		return nil, err
 	}
 
 	if !info.IsDir() {
-		return ISOHasher{root: root}, nil
+		return isoHasher{root: root}, nil
 	}
 	if isDir(filepath.Join(root, "BDMV", "STREAM")) {
-		return BluRayHasher{root: root}, nil
+		return bluRayHasher{root: root}, nil
 	}
 	if isDir(filepath.Join(root, "VIDEO_TS")) {
-		return DVDHasher{root: root}, nil
+		return dvdHasher{root: root}, nil
 	}
 
 	return nil, errors.New("unrecognized disc structure")
 }
 
-type DiscHasher interface {
+type discHasher interface {
 	Hash() (string, error)
 }
 
-type ISOHasher struct {
+type isoHasher struct {
 	root string
 }
 
-func (i ISOHasher) Hash() (string, error) {
+func (i isoHasher) Hash() (string, error) {
 	readOnly := true
 	backend, err := file.OpenFromPath(i.root, readOnly)
 	if err != nil {
@@ -87,11 +87,11 @@ func (i ISOHasher) Hash() (string, error) {
 	return hashSizes(fileInfos)
 }
 
-type DVDHasher struct {
+type dvdHasher struct {
 	root string
 }
 
-func (d DVDHasher) Hash() (string, error) {
+func (d dvdHasher) Hash() (string, error) {
 	videoDir := filepath.Join(d.root, "VIDEO_TS")
 
 	dirEntries, err := os.ReadDir(videoDir)
@@ -112,11 +112,11 @@ func (d DVDHasher) Hash() (string, error) {
 	return hashSizes(fileInfos)
 }
 
-type BluRayHasher struct {
+type bluRayHasher struct {
 	root string
 }
 
-func (b BluRayHasher) Hash() (string, error) {
+func (b bluRayHasher) Hash() (string, error) {
 	streamDir := filepath.Join(b.root, "BDMV", "STREAM")
 	dirEntries, err := os.ReadDir(streamDir)
 	if err != nil {
@@ -129,11 +129,8 @@ func (b BluRayHasher) Hash() (string, error) {
 		}
 
 		name := entry.Name()
-		if !strings.EqualFold(filepath.Ext(name), ".m2ts") {
-			return false
-		}
 
-		return true
+		return strings.EqualFold(filepath.Ext(name), ".m2ts")
 	}
 
 	fileInfos, err := getFiles(dirEntries, filter)
