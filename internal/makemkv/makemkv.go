@@ -119,23 +119,21 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	resultChan := c.runCmd(cancelCtx, "info", discRoot)
-	titles := []Title{}
 
+	titleMap := map[int]*Title{}
 	for result := range resultChan {
 		if result.Error != nil {
 			return nil, result.Error
 		} else if result.Line != nil {
-			parsedLine := result.Line
-
-			titleInfo, ok := parsedLine.(lines.TitleInfo)
+			titleInfo, ok := result.Line.(lines.TitleInfo)
 			if !ok {
 				continue
 			}
-
-			title := Title{
-				TitleId: titleInfo.TitleId,
+			if _, exists := titleMap[titleInfo.TitleId]; !exists {
+				titleMap[titleInfo.TitleId] = &Title{TitleId: titleInfo.TitleId}
 			}
 
+			title := titleMap[titleInfo.TitleId]
 			switch titleInfo.AttributeId {
 			case lines.TitleInfoCodeSourceFileName:
 				title.SourceFilename = titleInfo.Value
@@ -150,8 +148,12 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 					title.OutputFileSize = size
 				}
 			}
-			titles = append(titles, title)
 		}
+	}
+
+	titles := make([]Title, 0, len(titleMap))
+	for _, title := range titleMap {
+		titles = append(titles, *title)
 	}
 
 	return titles, nil
