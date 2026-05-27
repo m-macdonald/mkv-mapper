@@ -12,6 +12,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/validate"
 
 	"go.uber.org/zap"
 )
@@ -65,8 +66,8 @@ func (e *Engine) BuildPlan(
 }
 
 // TODO: Move validation into a separate package?
-func (e *Engine) ValidatePlan(plan planner.DiscPlan) ValidationReport {
-	return ValidatePlan(plan)
+func (e *Engine) ValidatePlan(plan planner.DiscPlan) validate.ValidationReport {
+	return validate.ValidatePlan(plan)
 }
 
 func (e *Engine) RunPlan(
@@ -79,7 +80,7 @@ func (e *Engine) RunPlan(
 		plan.DiscRoot,
 		plan.OutputDir,
 		func(pl lines.ParsedLine) {
-			if event, ok := event.ParsedLineToEvent(pl); ok {
+			if event, ok := parsedLineToEvent(pl); ok {
 				onEvent(event)
 			}
 		})
@@ -97,4 +98,28 @@ func (e *Engine) RunPlan(
 	}
 
 	return nil
+}
+
+func parsedLineToEvent(line lines.ParsedLine) (event.Event, bool) {
+	switch l := line.(type) {
+	case lines.ProgressValue:
+		return event.ProgressPercentEvent{
+			TotalPercent:   l.TotalPercent(),
+			CurrentPercent: l.CurrentPercent(),
+		}, true
+	case lines.ProgressCurrent:
+		return event.ProgressCurrentEvent{
+			Message: l.Name,
+		}, true
+	case lines.ProgressTitle:
+		return event.ProgressTotalEvent{
+			Message: l.Name,
+		}, true
+	case lines.Message:
+		return event.MessageEvent{
+			Message: l.Message,
+		}, true
+	}
+
+	return nil, false
 }

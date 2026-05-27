@@ -7,6 +7,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/validate"
 
 	"go.uber.org/zap"
 )
@@ -19,7 +20,7 @@ type Ripper struct {
 type RipPreview struct {
 	Plan             planner.DiscPlan
 	BuildReport      planner.BuildReport
-	ValidationReport engine.ValidationReport
+	ValidationReport validate.ValidationReport
 }
 
 type ExecutionReport struct{}

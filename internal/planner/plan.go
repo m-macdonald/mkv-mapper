@@ -12,10 +12,13 @@ import (
 )
 
 type DiscPlan struct {
-	DiscHash  string
-	DiscRoot  string
-	OutputDir string
-	Titles    []TitlePlan
+	MediaTitle string
+	MediaYear  int
+	DiscFormat string
+	DiscHash   string
+	DiscRoot   string
+	OutputDir  string
+	Titles     []TitlePlan
 }
 
 type TitlePlan struct {
@@ -40,9 +43,13 @@ func BuildPlan(
 	}
 
 	plan := DiscPlan{
-		DiscRoot:  discRoot,
-		OutputDir: outputDir,
-		Titles:    make([]TitlePlan, 0, len(mappings)),
+		MediaTitle: discRecord.Media.Title,
+		MediaYear:  discRecord.Media.Year,
+		DiscHash:   discRecord.Disc.ContentHash,
+		DiscFormat: discRecord.Disc.Format,
+		DiscRoot:   discRoot,
+		OutputDir:  outputDir,
+		Titles:     make([]TitlePlan, 0, len(mappings)),
 	}
 	report := BuildReport{
 		Warnings: make([]PlanWarning, 0),
@@ -70,6 +77,13 @@ func resolveFilenames(
 	// Track used filenames so that we can resolve conflicts
 	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
+		if mapping.DiscDbTitle.Item == nil {
+			report.Warnings = append(report.Warnings, PlanWarning{
+				TitleId: mapping.MakeMkvTitle.TitleId,
+				Code:    WarningCode("no_metadata"),
+				Message: "Title has no DiscDB metadata",
+			})
+		}
 		titleContext := naming.TitleContext{
 			DiscDbMedia:  discRecord.Media,
 			DiscDbTitle:  mapping.DiscDbTitle,
@@ -96,6 +110,7 @@ func resolveFilenames(
 		}
 
 		plan.Titles = append(plan.Titles, TitlePlan{
+			TitleId:           mapping.MakeMkvTitle.TitleId,
 			SourcePlaylist:    mapping.MakeMkvTitle.SourceFilename,
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,
 			FinalName:         filenameResolution.FinalName,

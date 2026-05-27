@@ -10,6 +10,7 @@ import (
 	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
+	"m-macdonald/mkv-mapper/internal/display"
 	"m-macdonald/mkv-mapper/internal/event"
 
 	"github.com/spf13/cobra"
@@ -46,19 +47,13 @@ func runRip(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(ripPreview.ValidationReport.Errors) > 0 {
-		// TODO: Handle the potentially multiple errors within ValidationReport
-		for _, err := range ripPreview.ValidationReport.Errors {
-			services.Logger.Error(err)
-		}
-		return fmt.Errorf("validation failed")
-	}
+	previewRenderer := display.NewPreviewRenderer(os.Stdout);
+	previewRenderer.Render(ripPreview)
 
 	interactive := detectInteractiveOutput(os.Stdout)
-	renderer := event.NewRenderer(os.Stdout, interactive)
+	renderer := display.NewProgressRenderer(os.Stdout, interactive)
 	defer renderer.Close()
 
-	// TODO: Log the intended plan steps and any warnings from the ValidationReport
 	err = services.Ripper.ExecuteRip(
 		cmd.Context(),
 		ripPreview.Plan,
