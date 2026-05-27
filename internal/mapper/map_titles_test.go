@@ -41,7 +41,7 @@ func TestMapTitles(t *testing.T) {
 				mkvmappertest.NewDiscTitle("01, 05, 06")),
 			titles: []makemkv.Title{
 				mkvmappertest.NewMakeMkvTitle("01, 05, 06"),
-				mkvmappertest.NewMakeMkvTitle("kaboom"),
+				mkvmappertest.NewMakeMkvTitle("  "),
 				mkvmappertest.NewMakeMkvTitle("06, 010"),
 			},
 			wantErr: true,
@@ -49,7 +49,7 @@ func TestMapTitles(t *testing.T) {
 		{
 			name: "error normalizing discdb.Title.SegmentMap",
 			discRecord: mkvmappertest.NewDiscRecord(
-				mkvmappertest.NewDiscTitle("kaboom"),
+				mkvmappertest.NewDiscTitle("  "),
 				mkvmappertest.NewDiscTitle("01, 05, 06")),
 			titles: []makemkv.Title{
 				mkvmappertest.NewMakeMkvTitle("01, 05, 06"),
@@ -90,14 +90,14 @@ func TestGroupBySegmentSignature(t *testing.T) {
 				mkvmappertest.NewMakeMkvTitle("02,05"),
 			},
 			want: map[signature.SegmentSignature]makemkv.Title{
-				signature.SegmentSignature("00001|00002"): mkvmappertest.NewMakeMkvTitle("01,02"),
-				signature.SegmentSignature("00002|00005"): mkvmappertest.NewMakeMkvTitle("02,05"),
+				signature.SegmentSignature("01,02"): mkvmappertest.NewMakeMkvTitle("01,02"),
+				signature.SegmentSignature("02,05"): mkvmappertest.NewMakeMkvTitle("02,05"),
 			},
 		},
 		{
 			name: "error",
 			titles: []makemkv.Title{
-				mkvmappertest.NewMakeMkvTitle("kaboom"),
+				mkvmappertest.NewMakeMkvTitle("  "),
 			},
 			wantErr: true,
 		},

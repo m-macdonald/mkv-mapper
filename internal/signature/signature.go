@@ -1,28 +1,20 @@
 package signature
 
 import (
-	"fmt"
-	"strconv"
+	"errors"
 	"strings"
 )
 
 type SegmentSignature string
 
 func NormalizeSegments(segmentString string) (SegmentSignature, error) {
-	segments := strings.Split(segmentString, ",")
-	parts := make([]string, 0, len(segments))
-
-	for _, segment := range segments {
-		segment = strings.TrimSpace(segment)
-
-		i, err := strconv.Atoi(segment)
-		if err != nil {
-			return "", err
-		}
-		a := fmt.Sprintf("%05d", i)
-
-		parts = append(parts, a)
+	segmentString = strings.TrimSpace(segmentString)
+	if len(segmentString) == 0 {
+		return "", errors.New("segment string must not be empty")
 	}
-
-	return SegmentSignature(strings.Join(parts, "|")), nil
+	segments := strings.Split(segmentString, ",")
+	for i, s := range segments {
+		segments[i] = strings.TrimSpace(s)
+	}
+	return SegmentSignature(strings.Join(segments, ",")), nil
 }
