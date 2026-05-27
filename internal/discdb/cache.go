@@ -10,8 +10,8 @@ import (
 )
 
 type Cache interface {
-	GetDiscRecord(ctx context.Context, discHash string) (*DiscRecord, bool, error)
-	PutDiscRecord(ctx context.Context, discHash string, discRecord *DiscRecord) error
+	GetDiscRecord(ctx context.Context, discHash string) (DiscRecord, bool, error)
+	PutDiscRecord(ctx context.Context, discHash string, discRecord DiscRecord) error
 }
 
 type SQLiteCache struct {
@@ -29,7 +29,7 @@ func NewSQLiteCache(cachePath string) (*SQLiteCache, error) {
 	}, nil
 }
 
-func (s *SQLiteCache) GetDiscRecord(ctx context.Context, discHash string) (*DiscRecord, bool, error) {
+func (s *SQLiteCache) GetDiscRecord(ctx context.Context, discHash string) (DiscRecord, bool, error) {
 	// This will need to change if we ever need to support multiple discs matching the same hash.
 	row := s.db.QueryRowContext(
 		ctx,
@@ -44,23 +44,23 @@ func (s *SQLiteCache) GetDiscRecord(ctx context.Context, discHash string) (*Disc
 	err := row.Scan(&data)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, false, nil
+			return DiscRecord{}, false, nil
 		}
 
-		return nil, false, err
+		return DiscRecord{}, false, err
 	}
 	err = json.Unmarshal(data, &record)
 	if err != nil {
-		return nil, false, err
+		return DiscRecord{}, false, err
 	}
 
-	return &record, true, nil
+	return record, true, nil
 }
 
 func (s *SQLiteCache) PutDiscRecord(
 	ctx context.Context,
 	discHash string,
-	discRecord *DiscRecord,
+	discRecord DiscRecord,
 ) error {
 	recordJsonBytes, err := json.Marshal(discRecord)
 	if err != nil {

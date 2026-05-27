@@ -31,40 +31,54 @@ func BuildPlan(
 	discRoot string,
 	outputDir string,
 	templateConfig config.TemplateConfig,
-	discRecord *discdb.DiscRecord,
-	titles map[signature.SegmentSignature]makemkv.Title,
-) (*DiscPlan, *BuildReport, error) {
+	discRecord discdb.DiscRecord,
+	titles []makemkv.Title,
+) (DiscPlan, BuildReport, error) {
 	mappings, err := mapper.MapTitles(discRecord, titles)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+		return DiscPlan{}, BuildReport{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
 
-	filenameGen, err := naming.NewGenerator(templateConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	plan := &DiscPlan{
+	plan := DiscPlan{
 		DiscRoot:  discRoot,
 		OutputDir: outputDir,
 		Titles:    make([]TitlePlan, 0, len(mappings)),
 	}
-	report := &BuildReport{
+	report := BuildReport{
 		Warnings: make([]PlanWarning, 0),
 	}
 
+	err = resolveFilenames(templateConfig, mappings, discRecord, &plan, &report)
+	if err != nil {
+		return DiscPlan{}, BuildReport{}, err
+	}
+
+	return plan, report, nil
+}
+
+func resolveFilenames(
+	templateConfig config.TemplateConfig,
+	mappings []mapper.TitleMapping,
+	discRecord discdb.DiscRecord,
+	plan *DiscPlan,
+	report *BuildReport,
+) error {
+	filenameGen, err := naming.NewFilenameGenerator(templateConfig)
+	if err != nil {
+		return err
+	}
 	// Track used filenames so that we can resolve conflicts
 	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
 		titleContext := naming.TitleContext{
-			DiscDbMedia: discRecord.Media,
-			DiscDbTitle: mapping.DiscDbTitle,
-			DiscDbDisc: discRecord.Disc,
+			DiscDbMedia:  discRecord.Media,
+			DiscDbTitle:  mapping.DiscDbTitle,
+			DiscDbDisc:   discRecord.Disc,
 			MakeMkvTitle: mapping.MakeMkvTitle,
 		}
-		filenameResolution, err := resolveFilename(filenameGen, titleContext, usedNames)
+		filenameResolution, err := naming.ResolveFilename(filenameGen, titleContext, usedNames)
 		if err != nil {
-			return nil, report, fmt.Errorf(
+			return fmt.Errorf(
 				"failed to resolve filename for makemkv title %d (%s): %w",
 				mapping.MakeMkvTitle.TitleId,
 				mapping.MakeMkvTitle.OutputFilename,
@@ -74,7 +88,8 @@ func BuildPlan(
 		for _, event := range filenameResolution.Events {
 			report.Warnings = append(report.Warnings, PlanWarning{
 				TitleId: mapping.MakeMkvTitle.TitleId,
-				Code:    event.Code,
+				// TODO: Translate this better
+				Code:    WarningCode(event.Code),
 				Message: event.Message,
 				Cause:   event.Cause,
 			})
@@ -88,5 +103,5 @@ func BuildPlan(
 		})
 	}
 
-	return plan, report, nil
+	return nil
 }
