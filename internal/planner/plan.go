@@ -11,6 +11,11 @@ import (
 	"m-macdonald/mkv-mapper/internal/signature"
 )
 
+type Plan struct {
+	DiscPlan    DiscPlan
+	BuildReport BuildReport
+}
+
 type DiscPlan struct {
 	MediaTitle string
 	MediaYear  int
@@ -36,10 +41,10 @@ func BuildPlan(
 	templateConfig config.TemplateConfig,
 	discRecord discdb.DiscRecord,
 	titles []makemkv.Title,
-) (DiscPlan, BuildReport, error) {
+) (Plan, error) {
 	mappings, err := mapper.MapTitles(discRecord, titles)
 	if err != nil {
-		return DiscPlan{}, BuildReport{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+		return Plan{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
 
 	plan := DiscPlan{
@@ -57,10 +62,10 @@ func BuildPlan(
 
 	err = resolveFilenames(templateConfig, mappings, discRecord, &plan, &report)
 	if err != nil {
-		return DiscPlan{}, BuildReport{}, err
+		return Plan{}, err
 	}
 
-	return plan, report, nil
+	return Plan{DiscPlan: plan, BuildReport: report}, nil
 }
 
 func resolveFilenames(
@@ -80,7 +85,7 @@ func resolveFilenames(
 		if mapping.DiscDbTitle.Item == nil {
 			report.Warnings = append(report.Warnings, PlanWarning{
 				TitleId: mapping.MakeMkvTitle.TitleId,
-				Code:    WarningCode("no_metadata"),
+				Code:    WarningNoMetadata,
 				Message: "Title has no DiscDB metadata",
 			})
 		}

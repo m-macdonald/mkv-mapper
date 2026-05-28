@@ -1,4 +1,4 @@
-package validate
+package engine
 
 import (
 	"errors"
@@ -66,7 +66,7 @@ const (
 	ValidationOutputDirInvalid  ValidationCode = "output_dir_invalid"
 )
 
-func ValidatePlan(plan planner.DiscPlan) ValidationReport {
+func validatePlan(plan planner.DiscPlan) ValidationReport {
 	report := &ValidationReport{}
 
 	validateOutputDir(plan, report)

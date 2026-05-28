@@ -5,27 +5,82 @@ import (
 	"m-macdonald/mkv-mapper/internal/makemkv"
 )
 
-func NewMakeMkvTitle(segmentMap string) makemkv.Title {
-	return makemkv.Title{
-		Segments:       segmentMap,
-		TitleId:        1,
-		OutputFilename: "file1-out.mkv",
-		SourceFilename: "file1.mkv",
+func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
+	title := makemkv.Title{
+		TitleId: 1,
+		OutputFilename: "title.mkv",
+		SourceFilename: "title.mpls",
 		OutputFileSize: 1000,
 	}
+	for _, opt := range opts {
+		opt(&title)
+	}
+	return title
 }
 
-func NewDiscTitle(segmentMap string) discdb.Title {
-	return discdb.Title{
-		SegmentMap: segmentMap,
+func WithSegments(segmentMap string) func(*makemkv.Title) {
+	return func(title *makemkv.Title) {
+		title.Segments = segmentMap
 	}
 }
 
-func NewDiscRecord(titles ...discdb.Title) discdb.DiscRecord {
-	return discdb.DiscRecord{
-		Disc: discdb.Disc{
-			Titles: titles,
-		},
+func WithOutputFilename(outputFilename string) func(*makemkv.Title) {
+	return func(title *makemkv.Title) {
+		title.OutputFilename = outputFilename
 	}
 }
 
+func WithTitleId(titleId int) func(*makemkv.Title) {
+	return func(title *makemkv.Title) {
+		title.TitleId = titleId
+	}
+}
+
+func NewDiscTitle(opts ...func(*discdb.Title)) discdb.Title {
+	title := discdb.Title{}
+	for _, opt := range opts {
+		opt(&title)
+	}
+	return title
+}
+
+func WithSegmentMap(segmentMap string) func(*discdb.Title) {
+	return func(title *discdb.Title) {
+		title.SegmentMap = segmentMap
+	}
+}
+
+func WithItem(item *discdb.Item) func(*discdb.Title) {
+	return func(title *discdb.Title) {
+		title.Item = item
+	}
+}
+
+func NewDiscItem() *discdb.Item {
+	return &discdb.Item{
+		Title:   "Test Title",
+		Season:  "1",
+		Episode: "1",
+		Type:    "Episode",
+	}
+}
+
+func NewDiscRecord(opts ...func(*discdb.DiscRecord)) discdb.DiscRecord {
+	record := discdb.DiscRecord{}
+	for _, opt := range opts {
+		opt(&record)
+	}
+	return record
+}
+
+func WithTitles(titles ...discdb.Title) func(*discdb.DiscRecord) {
+	return func(record *discdb.DiscRecord) {
+		record.Disc.Titles = titles
+	}
+}
+
+func WithMedia(media discdb.Media) func(*discdb.DiscRecord) {
+	return func(record *discdb.DiscRecord) {
+		record.Media = media
+	}
+}

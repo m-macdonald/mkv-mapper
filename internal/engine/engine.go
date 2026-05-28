@@ -12,7 +12,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/planner"
-	"m-macdonald/mkv-mapper/internal/validate"
 
 	"go.uber.org/zap"
 )
@@ -21,6 +20,11 @@ type Engine struct {
 	makemkv *makemkv.Client
 	discdb  *discdb.CachedClient
 	logger  *zap.SugaredLogger
+}
+
+type ValidatedPlan struct {
+	planner.Plan
+	ValidationReport ValidationReport
 }
 
 type EngineEventSink func(event.Event)
@@ -42,43 +46,45 @@ func (e *Engine) BuildPlan(
 	discRoot string,
 	outputDir string,
 	templateConfig config.TemplateConfig,
-) (planner.DiscPlan, planner.BuildReport, error) {
+) (planner.Plan, error) {
 	root, err := files.ResolveDiscRoot(discRoot)
 	if err != nil {
-		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("unable to find disc root %w", err)
+		return planner.Plan{}, fmt.Errorf("unable to find disc root %w", err)
 	}
 	hash, err := files.Hash(root)
 	if err != nil {
-		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("unable to hash disc %w", err)
+		return planner.Plan{}, fmt.Errorf("unable to hash disc %w", err)
 	}
 
 	disc, err := e.discdb.LookupDisc(ctx, hash)
 	if err != nil {
-		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
+		return planner.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
 	}
 
 	titles, err := e.makemkv.ReadTitles(ctx, root)
 	if err != nil {
-		return planner.DiscPlan{}, planner.BuildReport{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
+		return planner.Plan{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
 
 	return planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
 }
 
-// TODO: Move validation into a separate package?
-func (e *Engine) ValidatePlan(plan planner.DiscPlan) validate.ValidationReport {
-	return validate.ValidatePlan(plan)
+func (e *Engine) ValidatePlan(plan planner.Plan) *ValidatedPlan {
+	return &ValidatedPlan{
+		Plan:             plan,
+		ValidationReport: validatePlan(plan.DiscPlan),
+	}
 }
 
 func (e *Engine) RunPlan(
 	ctx context.Context,
-	plan planner.DiscPlan,
+	plan ValidatedPlan,
 	onEvent EngineEventSink,
 ) error {
 	err := e.makemkv.RipDisc(
 		ctx,
-		plan.DiscRoot,
-		plan.OutputDir,
+		plan.DiscPlan.DiscRoot,
+		plan.DiscPlan.OutputDir,
 		func(pl lines.ParsedLine) {
 			if event, ok := parsedLineToEvent(pl); ok {
 				onEvent(event)
@@ -89,10 +95,10 @@ func (e *Engine) RunPlan(
 	}
 
 	mappings := make(map[string]string)
-	for _, titlePlan := range plan.Titles {
+	for _, titlePlan := range plan.DiscPlan.Titles {
 		mappings[titlePlan.MakeMkvOutputFile] = titlePlan.FinalName
 	}
-	errs := mapper.RenameTitles(plan.OutputDir, plan.OutputDir, mappings)
+	errs := mapper.RenameTitles(plan.DiscPlan.OutputDir, plan.DiscPlan.OutputDir, mappings)
 	if len(errs) != 0 {
 		e.logger.Errorf("%v", errs)
 	}

@@ -35,7 +35,7 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	ripPreview, err := services.Ripper.PreviewRip(
+	plan, err := services.Engine.BuildPlan(
 		cmd.Context(),
 		ctx.Config.DiscRoot,
 		ctx.Config.OutputDir,
@@ -43,9 +43,10 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	validatedPlan := services.Engine.ValidatePlan(plan)
 
 	previewRenderer := display.NewPreviewRenderer(os.Stdout)
-	previewRenderer.Render(ripPreview)
+	previewRenderer.Render(validatedPlan)
 
 	return nil
 }

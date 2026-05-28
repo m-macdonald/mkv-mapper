@@ -15,7 +15,7 @@ import (
 )
 
 type Services struct {
-	Ripper *Ripper
+	Engine *engine.Engine
 	Logger *zap.SugaredLogger
 
 	closers []io.Closer
@@ -57,10 +57,8 @@ func BuildServices(ctx AppContext) (*Services, error) {
 		discdbClient,
 		logger.Named("pipeline"))
 
-	ripper := NewRipper(engine, logger.Named("ripper"))
-
 	return &Services{
-		Ripper:  ripper,
+		Engine: engine,
 		Logger:  logger,
 		closers: []io.Closer{cache},
 	}, nil

@@ -38,7 +38,7 @@ func runRip(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	ripPreview, err := services.Ripper.PreviewRip(
+	plan, err := services.Engine.BuildPlan(
 		cmd.Context(),
 		ctx.Config.DiscRoot,
 		ctx.Config.OutputDir,
@@ -46,17 +46,18 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	validatedPlan := services.Engine.ValidatePlan(plan)
 
 	previewRenderer := display.NewPreviewRenderer(os.Stdout);
-	previewRenderer.Render(ripPreview)
+	previewRenderer.Render(validatedPlan)
 
 	interactive := detectInteractiveOutput(os.Stdout)
 	renderer := display.NewProgressRenderer(os.Stdout, interactive)
 	defer renderer.Close()
 
-	err = services.Ripper.ExecuteRip(
+	err = services.Engine.RunPlan(
 		cmd.Context(),
-		ripPreview.Plan,
+		*validatedPlan,
 		func(e event.Event) {
 			err := renderer.HandleEvent(e)
 			if err != nil {

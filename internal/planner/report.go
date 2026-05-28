@@ -12,3 +12,7 @@ type PlanWarning struct {
 }
 
 type WarningCode string
+
+const (
+	WarningNoMetadata WarningCode = "no_metadata"
+)

@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"m-macdonald/mkv-mapper/internal/app"
+	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/format"
 	"m-macdonald/mkv-mapper/internal/planner"
-	"m-macdonald/mkv-mapper/internal/validate"
 )
 
 type PreviewRenderer struct {
@@ -20,40 +19,40 @@ func NewPreviewRenderer(out io.Writer) PreviewRenderer {
 	}
 }
 
-func (p *PreviewRenderer) Render(preview *app.RipPreview) error {
-	if err := p.renderHeader(preview); err != nil {
+func (p *PreviewRenderer) Render(plan *engine.ValidatedPlan) error {
+	if err := p.renderHeader(plan); err != nil {
 		return err
 	}
-	if err := p.renderTitles(preview); err != nil {
+	if err := p.renderTitles(plan); err != nil {
 		return err
 	}
-	if err := p.renderValidation(preview); err != nil {
+	if err := p.renderValidation(plan); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *PreviewRenderer) renderHeader(preview *app.RipPreview) error {
+func (p *PreviewRenderer) renderHeader(plan *engine.ValidatedPlan) error {
 	_, err := fmt.Fprintf(p.out, "%s (%d) — %s\nHash: %s\n\n",
-		preview.Plan.MediaTitle,
-		preview.Plan.MediaYear,
-		preview.Plan.DiscFormat,
-		preview.Plan.DiscHash,
+		plan.DiscPlan.MediaTitle,
+		plan.DiscPlan.MediaYear,
+		plan.DiscPlan.DiscFormat,
+		plan.DiscPlan.DiscHash,
 	)
 	return err
 }
 
-func (p *PreviewRenderer) renderTitles(preview *app.RipPreview) error {
+func (p *PreviewRenderer) renderTitles(plan *engine.ValidatedPlan) error {
 	warningsByTitle := indexByTitleId(
-		preview.BuildReport.Warnings,
+		plan.BuildReport.Warnings,
 		func(w planner.PlanWarning) *int { return &w.TitleId })
 	validationsByTitle := indexByTitleId(
-		preview.ValidationReport.Results,
-		func(v validate.ValidationResult) *int { return v.TitleId })
+		plan.ValidationReport.Results,
+		func(v engine.ValidationResult) *int { return v.TitleId })
 	if _, err := fmt.Fprintln(p.out, "Titles:"); err != nil {
 		return err
 	}
-	for _, title := range preview.Plan.Titles {
+	for _, title := range plan.DiscPlan.Titles {
 		_, err := fmt.Fprintf(p.out, "  %s → %s (%s)\n",
 			title.MakeMkvOutputFile,
 			title.FinalName,
@@ -78,9 +77,9 @@ func (p *PreviewRenderer) renderTitles(preview *app.RipPreview) error {
 	return nil
 }
 
-func (r *PreviewRenderer) renderValidation(preview *app.RipPreview) error {
-	var discValidations []validate.ValidationResult
-	for _, validation := range preview.ValidationReport.Results {
+func (r *PreviewRenderer) renderValidation(plan *engine.ValidatedPlan) error {
+	var discValidations []engine.ValidationResult
+	for _, validation := range plan.ValidationReport.Results {
 		// Validations that are not associated with a title id are considered "disc-level"
 		if validation.TitleId == nil {
 			discValidations = append(discValidations, validation)
@@ -113,13 +112,13 @@ func indexByTitleId[T any](items []T, getId func(T) *int) map[int][]T {
 	return index
 }
 
-func getValidationSymbol(status validate.ValidationStatus) string {
+func getValidationSymbol(status engine.ValidationStatus) string {
 	switch status {
-	case validate.ValidationStatusPass:
+	case engine.ValidationStatusPass:
 		return "✓"
-	case validate.ValidationStatusWarn:
+	case engine.ValidationStatusWarn:
 		return "⚠"
-	case validate.ValidationStatusFail:
+	case engine.ValidationStatusFail:
 		return "✗"
 	}
 	return ""

@@ -6,6 +6,7 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/mkvmappertest"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -32,12 +33,7 @@ func TestResolveFilename(t *testing.T) {
 			DisplaySize: "DisplaySize",
 			SourceFile:  "sourceFile.mpls",
 			SegmentMap:  "05,7",
-			Item: &discdb.Item{
-				Title:   "",
-				Season:  "",
-				Episode: "",
-				Type:    "",
-			},
+			Item: mkvmappertest.NewDiscItem(),
 		},
 		DiscDbDisc: discdb.Disc{},
 		MakeMkvTitle: makemkv.Title{
