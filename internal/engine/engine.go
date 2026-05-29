@@ -81,6 +81,9 @@ func (e *Engine) RunPlan(
 	plan ValidatedPlan,
 	onEvent EngineEventSink,
 ) error {
+	if plan.ValidationReport.HasErrors() {
+		return fmt.Errorf("plan has validation errors, aborting rip")
+	}
 	err := e.makemkv.RipDisc(
 		ctx,
 		plan.DiscPlan.DiscRoot,

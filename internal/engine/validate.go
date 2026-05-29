@@ -32,6 +32,10 @@ func (v *ValidationReport) Errors() []ValidationResult {
 	return v.filter(ValidationStatusFail)
 }
 
+func (v *ValidationReport) HasErrors() bool {
+	return len(v.Errors()) > 0
+}
+
 func (v *ValidationReport) filter(status ValidationStatus) []ValidationResult {
 	var results []ValidationResult
 	for _, r := range v.Results {
