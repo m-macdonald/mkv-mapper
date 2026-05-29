@@ -23,10 +23,21 @@ func NewSQLiteCache(cachePath string) (*SQLiteCache, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := initSchema(db); err != nil {
+		return nil, err
+	}
+	return &SQLiteCache{db: db}, nil
+}
 
-	return &SQLiteCache{
-		db: db,
-	}, nil
+func initSchema(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS disc_record (
+		slug_signature 	TEXT PRIMARY KEY
+						UNIQUE
+                        NOT NULL,
+    	hash           	TEXT NOT NULL,
+    	record         	TEXT NOT NULL
+	)`)
+	return err
 }
 
 func (s *SQLiteCache) GetDiscRecord(ctx context.Context, discHash string) (DiscRecord, bool, error) {

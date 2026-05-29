@@ -1,50 +1,73 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
-	"m-macdonald/mkv-mapper/internal/files"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"io/fs"
 	"os"
 	"path/filepath"
+
+	"m-macdonald/mkv-mapper/internal/files"
+	"m-macdonald/mkv-mapper/internal/format"
+	"m-macdonald/mkv-mapper/internal/planner"
 )
 
 type ValidationReport struct {
-	Errors   []ValidationIssue
-	Warnings []ValidationIssue
+	Results []ValidationResult
 }
 
-func (r *ValidationReport) HasErrors() bool {
-	return len(r.Errors) > 0
+func (v *ValidationReport) AddResult(result ValidationResult) {
+	v.Results = append(v.Results, result)
 }
 
-func (r *ValidationReport) AddError(issue ValidationIssue) {
-	r.Errors = append(r.Errors, issue)
+func (v *ValidationReport) Passes() []ValidationResult {
+	return v.filter(ValidationStatusPass)
 }
 
-func (r *ValidationReport) AddWarning(issue ValidationIssue) {
-	r.Warnings = append(r.Warnings, issue)
+func (v *ValidationReport) Warnings() []ValidationResult {
+	return v.filter(ValidationStatusWarn)
 }
 
-type ValidationIssue struct {
+func (v *ValidationReport) Errors() []ValidationResult {
+	return v.filter(ValidationStatusFail)
+}
+
+func (v *ValidationReport) filter(status ValidationStatus) []ValidationResult {
+	var results []ValidationResult
+	for _, r := range v.Results {
+		if r.Status == status {
+			results = append(results, r)
+		}
+	}
+	return results
+}
+
+type ValidationResult struct {
+	Status  ValidationStatus
 	Code    ValidationCode
 	Message string
 	Cause   error
 	TitleId *int
 }
 
+type ValidationStatus string
+
+const (
+	ValidationStatusPass ValidationStatus = "pass"
+	ValidationStatusWarn ValidationStatus = "warn"
+	ValidationStatusFail ValidationStatus = "fail"
+)
+
 type ValidationCode string
 
 const (
 	ValidationInsufficientSpace ValidationCode = "insufficient_space"
-	ValidationOutputExists ValidationCode = "output_exists"
-	ValidationOutputDirInvalid ValidationCode = "output_dir_invalid"
+	ValidationOutputExists      ValidationCode = "output_exists"
+	ValidationOutputDirInvalid  ValidationCode = "output_dir_invalid"
 )
 
-func ValidatePlan(plan planner.DiscPlan) ValidationReport {
-	report := &ValidationReport{
-		Errors:   make([]ValidationIssue, 0),
-		Warnings: make([]ValidationIssue, 0),
-	}
+func validatePlan(plan planner.DiscPlan) ValidationReport {
+	report := &ValidationReport{}
 
 	validateOutputDir(plan, report)
 	validateDiskSpace(plan, report)
@@ -58,39 +81,52 @@ func validateOutputDir(plan planner.DiscPlan, report *ValidationReport) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Making this an error for now. I might just auto-create the outputdir in the future
-			report.AddError(ValidationIssue{
-				Code: ValidationOutputDirInvalid,
+			report.AddResult(ValidationResult{
+				Status:  ValidationStatusFail,
+				Code:    ValidationOutputDirInvalid,
 				Message: fmt.Sprintf("output directory does not exist: %s", plan.OutputDir),
-				Cause: err,
+				Cause:   err,
 			})
 
 			return
 		}
-		report.AddError(ValidationIssue{
-			Code: ValidationOutputDirInvalid,
+		report.AddResult(ValidationResult{
+			Status:  ValidationStatusFail,
+			Code:    ValidationOutputDirInvalid,
 			Message: fmt.Sprintf("could not stat output directory: %s", plan.OutputDir),
-			Cause: err,
+			Cause:   err,
 		})
 
 		return
 	}
 
 	if !info.IsDir() {
-		report.AddError(ValidationIssue{
-			Code: ValidationOutputDirInvalid,
+		report.AddResult(ValidationResult{
+			Status:  ValidationStatusFail,
+			Code:    ValidationOutputDirInvalid,
 			Message: fmt.Sprintf("output path is not a directory: %s", plan.OutputDir),
 		})
+
+		return
 	}
+
+	report.AddResult(ValidationResult{
+		Status:  ValidationStatusPass,
+		Message: fmt.Sprintf("output directory valid: %s", plan.OutputDir),
+	})
 }
 
 func validateDiskSpace(plan planner.DiscPlan, report *ValidationReport) {
 	free, err := files.GetFreeDiskSpace(plan.OutputDir)
 	if err != nil {
-		report.AddError(ValidationIssue{
-			Code: ValidationOutputDirInvalid,
+		report.AddResult(ValidationResult{
+			Status:  ValidationStatusFail,
+			Code:    ValidationOutputDirInvalid,
 			Message: fmt.Sprintf("could not determine free space for output directory: %s", plan.OutputDir),
-			Cause: err,
+			Cause:   err,
 		})
+
+		return
 	}
 
 	var required uint64
@@ -99,41 +135,67 @@ func validateDiskSpace(plan planner.DiscPlan, report *ValidationReport) {
 	}
 
 	if free < required {
-		report.AddError(ValidationIssue{
-			Code: ValidationInsufficientSpace,
+		report.AddResult(ValidationResult{
+			Status: ValidationStatusFail,
+			Code:   ValidationInsufficientSpace,
 			Message: fmt.Sprintf(
-				"not enough free space in %s: need %d bytes, have %d bytes",
+				"insufficient disk space %s: need %s, have %s",
 				plan.OutputDir,
-				required,
-				free),
+				format.Size(required),
+				format.Size(free)),
 		})
+
+		return
 	}
+
+	report.AddResult(ValidationResult{
+		Status: ValidationStatusPass,
+		Message: fmt.Sprintf(
+			"sufficient disk space %s: need %s, have %s",
+			plan.OutputDir,
+			format.Size(required),
+			format.Size(free)),
+	})
 }
 
 func validateExistingFiles(plan planner.DiscPlan, report *ValidationReport) {
+	hasIssue := false
 	for _, title := range plan.Titles {
 		outPath := filepath.Join(plan.OutputDir, title.FinalName)
 
 		_, err := os.Stat(outPath)
 		if err == nil {
 			titleId := title.TitleId
-			report.AddError(ValidationIssue{
-				Code: ValidationOutputExists,
+			report.AddResult(ValidationResult{
+				Status:  ValidationStatusFail,
+				Code:    ValidationOutputExists,
 				Message: fmt.Sprintf("output file already exists: %s", outPath),
 				TitleId: &titleId,
 			})
+			hasIssue = true
 
 			continue
 		}
 
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			titleId := title.TitleId
-			report.AddError(ValidationIssue{
-				Code: ValidationOutputDirInvalid,
+			report.AddResult(ValidationResult{
+				Status:  ValidationStatusFail,
+				Code:    ValidationOutputDirInvalid,
 				Message: fmt.Sprintf("could not stat output file path: %s", outPath),
-				Cause: err,
+				Cause:   err,
 				TitleId: &titleId,
 			})
+			hasIssue = true
+
+			continue
 		}
+	}
+
+	if !hasIssue {
+		report.AddResult(ValidationResult{
+			Status:  ValidationStatusPass,
+			Message: "No existing file conflicts",
+		})
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
+	"m-macdonald/mkv-mapper/internal/display"
 	"m-macdonald/mkv-mapper/internal/event"
 
 	"github.com/spf13/cobra"
@@ -37,7 +38,7 @@ func runRip(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	ripPreview, err := services.Ripper.PreviewRip(
+	plan, err := services.Engine.BuildPlan(
 		cmd.Context(),
 		ctx.Config.DiscRoot,
 		ctx.Config.OutputDir,
@@ -45,23 +46,18 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	validatedPlan := services.Engine.ValidatePlan(plan)
 
-	if len(ripPreview.ValidationReport.Errors) > 0 {
-		// TODO: Handle the potentially multiple errors within ValidationReport
-		for _, err := range ripPreview.ValidationReport.Errors {
-			services.Logger.Error(err)
-		}
-		return fmt.Errorf("validation failed")
-	}
+	previewRenderer := display.NewPreviewRenderer(os.Stdout);
+	previewRenderer.Render(validatedPlan)
 
 	interactive := detectInteractiveOutput(os.Stdout)
-	renderer := event.NewRenderer(os.Stdout, interactive)
+	renderer := display.NewProgressRenderer(os.Stdout, interactive)
 	defer renderer.Close()
 
-	// TODO: Log the intended plan steps and any warnings from the ValidationReport
-	err = services.Ripper.ExecuteRip(
+	err = services.Engine.RunPlan(
 		cmd.Context(),
-		ripPreview.Plan,
+		*validatedPlan,
 		func(e event.Event) {
 			err := renderer.HandleEvent(e)
 			if err != nil {

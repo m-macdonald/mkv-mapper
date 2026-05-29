@@ -12,12 +12,17 @@ func TestNormalizeSegments(t *testing.T) {
 		{
 			name:          "creates SegmentSignature",
 			segmentString: "05,08",
-			want:          SegmentSignature("00005|00008"),
+			want:          SegmentSignature("05,08"),
 			wantErr:       false,
 		},
 		{
-			name:          "error when segment string contains non-int",
-			segmentString: "05,test",
+			name:          "handles range-style segment maps",
+			segmentString: "1-6, 7-11",
+			want:          SegmentSignature("1-6,7-11"),
+		},
+		{
+			name:          "error when segment string is empty",
+			segmentString: "  ",
 			want:          SegmentSignature(""),
 			wantErr:       true,
 		},

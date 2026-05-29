@@ -11,11 +11,19 @@ import (
 	"m-macdonald/mkv-mapper/internal/signature"
 )
 
+type Plan struct {
+	DiscPlan    DiscPlan
+	BuildReport BuildReport
+}
+
 type DiscPlan struct {
-	DiscHash  string
-	DiscRoot  string
-	OutputDir string
-	Titles    []TitlePlan
+	MediaTitle string
+	MediaYear  int
+	DiscFormat string
+	DiscHash   string
+	DiscRoot   string
+	OutputDir  string
+	Titles     []TitlePlan
 }
 
 type TitlePlan struct {
@@ -33,16 +41,20 @@ func BuildPlan(
 	templateConfig config.TemplateConfig,
 	discRecord discdb.DiscRecord,
 	titles []makemkv.Title,
-) (DiscPlan, BuildReport, error) {
+) (Plan, error) {
 	mappings, err := mapper.MapTitles(discRecord, titles)
 	if err != nil {
-		return DiscPlan{}, BuildReport{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+		return Plan{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
 	}
 
 	plan := DiscPlan{
-		DiscRoot:  discRoot,
-		OutputDir: outputDir,
-		Titles:    make([]TitlePlan, 0, len(mappings)),
+		MediaTitle: discRecord.Media.Title,
+		MediaYear:  discRecord.Media.Year,
+		DiscHash:   discRecord.Disc.ContentHash,
+		DiscFormat: discRecord.Disc.Format,
+		DiscRoot:   discRoot,
+		OutputDir:  outputDir,
+		Titles:     make([]TitlePlan, 0, len(mappings)),
 	}
 	report := BuildReport{
 		Warnings: make([]PlanWarning, 0),
@@ -50,10 +62,10 @@ func BuildPlan(
 
 	err = resolveFilenames(templateConfig, mappings, discRecord, &plan, &report)
 	if err != nil {
-		return DiscPlan{}, BuildReport{}, err
+		return Plan{}, err
 	}
 
-	return plan, report, nil
+	return Plan{DiscPlan: plan, BuildReport: report}, nil
 }
 
 func resolveFilenames(
@@ -70,6 +82,13 @@ func resolveFilenames(
 	// Track used filenames so that we can resolve conflicts
 	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
+		if mapping.DiscDbTitle.Item == nil {
+			report.Warnings = append(report.Warnings, PlanWarning{
+				TitleId: mapping.MakeMkvTitle.TitleId,
+				Code:    WarningNoMetadata,
+				Message: "Title has no DiscDB metadata",
+			})
+		}
 		titleContext := naming.TitleContext{
 			DiscDbMedia:  discRecord.Media,
 			DiscDbTitle:  mapping.DiscDbTitle,
@@ -96,6 +115,7 @@ func resolveFilenames(
 		}
 
 		plan.Titles = append(plan.Titles, TitlePlan{
+			TitleId:           mapping.MakeMkvTitle.TitleId,
 			SourcePlaylist:    mapping.MakeMkvTitle.SourceFilename,
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,
 			FinalName:         filenameResolution.FinalName,
