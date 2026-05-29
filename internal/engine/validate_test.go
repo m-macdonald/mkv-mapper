@@ -2,6 +2,7 @@ package engine
 
 import (
 	"m-macdonald/mkv-mapper/internal/planner"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -86,8 +87,7 @@ func TestValidateDiskSpace(t *testing.T) {
 			setup: func(t *testing.T) string {
 				return t.TempDir()
 			},
-			// max uint64 value will always exceed available space
-			titles:     []planner.TitlePlan{{EstimatedSize: ^uint64(0)}},
+			titles:     []planner.TitlePlan{{EstimatedSize: math.MaxUint64}},
 			wantStatus: ValidationStatusFail,
 			wantCode:   ValidationInsufficientSpace,
 		},
