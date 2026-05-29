@@ -21,26 +21,18 @@ type Services struct {
 	closers []io.Closer
 }
 
-type contextKey struct{}
-
-var AppContextKey = contextKey{}
-
-type AppContext struct {
-	Config config.Config
-}
-
-func BuildServices(ctx AppContext) (*Services, error) {
-	logger, err := initLogger(ctx.Config)
+func BuildServices(cfg config.Config) (*Services, error) {
+	logger, err := initLogger(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	makemkvClient := makemkv.NewClient(
-		ctx.Config.MakeMkvPath,
+		cfg.MakeMkvPath,
 		logger.Named("makemkv"),
 	)
 
-	cache, err := discdb.NewSQLiteCache(ctx.Config.CachePath)
+	cache, err := discdb.NewSQLiteCache(cfg.CachePath)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +47,7 @@ func BuildServices(ctx AppContext) (*Services, error) {
 	engine := engine.New(
 		makemkvClient,
 		discdbClient,
-		logger.Named("pipeline"))
+		logger.Named("engine"))
 
 	return &Services{
 		Engine: engine,
