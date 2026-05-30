@@ -4,15 +4,22 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
-	"m-macdonald/mkv-mapper/internal/app"
+	"m-macdonald/mkv-mapper/cmd/disc"
 	"m-macdonald/mkv-mapper/internal/config"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+)
+
+const (
+	logLevel = "log-level"
+	cfg      = "config"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -25,7 +32,9 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	PersistentPreRunE: initContext,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return initConfig(cmd)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -37,59 +46,43 @@ func Execute() {
 	}
 }
 
-// TODO: support windows, darwin?
-var defaultCfgFile = "$XDG_CONFIG_HOME/mkv-mapper/config.json"
-
 var cfgFile string
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, fmt.Sprintf("Path to the config config file (default is %s)", defaultCfgFile))
-	rootCmd.PersistentFlags().String("output-dir", "", "Output directory for ripped files")
-	rootCmd.PersistentFlags().String("disc-root", "", "Disc mount root directory")
-	rootCmd.PersistentFlags().String("log-level", "info", "The level at which we should log any messages. Info is the default and probably does not ned to be changed")
-	rootCmd.PersistentFlags().String("makemkv-path", "makemkvcon", "The location of the makemkvcon binary. Defaults to assuming the binary is already available on the path")
-	rootCmd.PersistentFlags().String("template-override", "", "Provide a file naming template for this rip. This template will be used in place of any config-defined templates")
+	cobra.EnableTraverseRunHooks = true
+	rootCmd.AddCommand(disc.Cmd)
 
-	viper.BindPFlag(config.OutputDir, rootCmd.PersistentFlags().Lookup("output-dir"))
-	viper.BindPFlag(config.DiscRoot, rootCmd.PersistentFlags().Lookup("disc-root"))
-	viper.BindPFlag(config.LogLevel, rootCmd.PersistentFlags().Lookup("log-level"))
-	viper.BindPFlag(config.MakeMkvPath, rootCmd.PersistentFlags().Lookup("makemkv-path"))
-	viper.BindPFlag(config.TemplateOverride, rootCmd.PersistentFlags().Lookup("template-override"))
+	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg, "", "Path to the config file")
+	rootCmd.PersistentFlags().String(logLevel, "info", "The level at which we should log any messages")
 }
 
-func initContext(cmd *cobra.Command, args []string) error {
-	config, err := initConfig()
-	if err != nil {
-		return err
-	}
-
-	appContext := app.AppContext{
-		Config: config,
-	}
-
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, app.AppContextKey, appContext)
-
-	cmd.SetContext(ctx)
-
-	return nil
-}
-
-func initConfig() (config.Config, error) {
-	viper.SetConfigFile(cfgFile)
-
-	viper.SetEnvPrefix("MKVMAP")
+func initConfig(cmd *cobra.Command) error {
+	viper.BindPFlag(config.LogLevel, cmd.Flags().Lookup(logLevel))
+	viper.SetEnvPrefix(config.EnvPrefix)
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "*", "-", "*"))
 	viper.AutomaticEnv()
 
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return err
+		}
+		viper.AddConfigPath(".")
+		viper.AddConfigPath(filepath.Join(configDir, config.ProgramDirname))
+		viper.SetConfigName(config.ConfigFilename)
+		viper.SetConfigType("json")
+	}
+
 	if err := viper.ReadInConfig(); err != nil {
-		return config.Config{}, fmt.Errorf("failed to read config file %s %w", cfgFile, err)
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if !errors.As(err, &configFileNotFoundError) {
+			return err
+		}
+
+		return fmt.Errorf("failed to read config: %w", err)
 	}
 
-	var cfg config.Config
-	err := viper.Unmarshal(&cfg)
-	if err != nil {
-		return config.Config{}, fmt.Errorf("failed to unmarshal config %w", err)
-	}
-
-	return config.ResolveConfig(config.DefaultConfig(), cfg)
+	return nil
 }

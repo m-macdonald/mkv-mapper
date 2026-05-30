@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -15,7 +17,9 @@ const (
 	OutputDir        = "outputDir"
 	TemplateOverride = "templates.override"
 	CachePath        = "cachePath"
-	appPath          = "mkv-mapper"
+	ProgramDirname   = "mkv-mapper"
+	EnvPrefix        = "MKVMAP"
+	ConfigFilename   = "config"
 )
 
 type Config struct {
@@ -39,8 +43,8 @@ func DefaultConfig() Config {
 	return Config{
 		CachePath: "",
 		// TODO: Eventually handle this by OS. For now it's best that the user just override
-		DiscRoot:    "",
-		LogLevel:    "info",
+		DiscRoot: "",
+		LogLevel: "info",
 		// Assume makemkvcon is on the path
 		MakeMkvPath: "makemkvcon",
 		// Output to CWD by default
@@ -54,7 +58,16 @@ func DefaultConfig() Config {
 	}
 }
 
-func ResolveConfig(base Config, user Config) (Config, error) {
+func Load() (Config, error) {
+	var cfg Config
+	if err := viper.Unmarshal(&cfg); err != nil {
+		return Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return resolveConfig(DefaultConfig(), cfg)
+}
+
+func resolveConfig(base Config, user Config) (Config, error) {
 	merged := mergeConfig(base, user)
 	resolved, err := finalizeConfig(merged)
 	if err != nil {
@@ -126,7 +139,7 @@ func finalizeConfig(config Config) (Config, error) {
 		if err != nil {
 			return Config{}, err
 		}
-		result.CachePath = filepath.Join(cacheDir, appPath, "cache.sqlite")
+		result.CachePath = filepath.Join(cacheDir, ProgramDirname, "cache.sqlite")
 	}
 	var err error
 	result.CachePath, err = resolveAbsPath(result.CachePath)
@@ -171,7 +184,7 @@ func resolveExecutable(value string) (string, error) {
 	}
 	path, err := resolveHomePath(value)
 	if err != nil {
-		return "", err 
+		return "", err
 	}
 
 	path, err = exec.LookPath(path)
@@ -182,8 +195,12 @@ func resolveExecutable(value string) (string, error) {
 	return path, nil
 }
 
-// TODO: Pretty sure this falls apart on Windows
+// expands environment variables in the path, and ~ to the user's home directory.
+// This is needed for paths read from config files where
+// we don't benefit from shell expansion
 func resolveHomePath(path string) (string, error) {
+	path = os.ExpandEnv(path)
+
 	if strings.HasPrefix(path, "~"+string(filepath.Separator)) {
 		home, err := os.UserHomeDir()
 		if err != nil {

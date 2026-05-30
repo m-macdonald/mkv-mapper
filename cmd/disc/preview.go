@@ -1,13 +1,13 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
-package cmd
+package disc
 
 import (
-	"fmt"
 	"os"
 
 	"m-macdonald/mkv-mapper/internal/app"
+	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/display"
 
 	"github.com/spf13/cobra"
@@ -21,15 +21,15 @@ var previewCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(previewCmd)
+	Cmd.AddCommand(previewCmd)
 }
 
 func runPreview(cmd *cobra.Command, args []string) error {
-	ctx, ok := cmd.Context().Value(app.AppContextKey).(app.AppContext)
-	if !ok {
-		panic(fmt.Errorf("failed to retrieve app context, unable to continue"))
+	cfg, err := config.Load()
+	if err != nil {
+		return err
 	}
-	services, err := app.BuildServices(ctx)
+	services, err := app.BuildServices(cfg)
 	if err != nil {
 		return err
 	}
@@ -37,9 +37,9 @@ func runPreview(cmd *cobra.Command, args []string) error {
 
 	plan, err := services.Engine.BuildPlan(
 		cmd.Context(),
-		ctx.Config.DiscRoot,
-		ctx.Config.OutputDir,
-		ctx.Config.Templates)
+		cfg.DiscRoot,
+		cfg.OutputDir,
+		cfg.Templates)
 	if err != nil {
 		return err
 	}
