@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
@@ -47,10 +48,19 @@ func (e *Engine) BuildPlan(
 	outputDir string,
 	templateConfig config.TemplateConfig,
 ) (planner.Plan, error) {
-	root, err := files.ResolveDiscRoot(discRoot)
-	if err != nil {
-		return planner.Plan{}, fmt.Errorf("unable to find disc root %w", err)
+	discMounts, err := files.ResolveDiscRoot(discRoot)
+	switch {
+	case err != nil:
+		return planner.Plan{}, fmt.Errorf("failure resolving disc root: %w", err)
+	case len(discMounts) < 1:
+		return planner.Plan{}, fmt.Errorf("no disc found")
+	case len(discMounts) > 1:
+		return planner.Plan{}, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
 	}
+
+	//The above switch makes sure that me can safely get the first (and only) element
+	root := discMounts[0]
+
 	hash, err := files.Hash(root)
 	if err != nil {
 		return planner.Plan{}, fmt.Errorf("unable to hash disc %w", err)
