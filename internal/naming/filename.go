@@ -44,8 +44,10 @@ func ResolveFilename(
 		})
 	}
 
+	sanitizedName := sanitizeSegment(baseName)
+
 	finalName, collisionResolved, err := ensureUniqueFilename(
-		baseName,
+		sanitizedName,
 		ext,
 		titleContext.MakeMkvTitle.TitleId,
 		used)
