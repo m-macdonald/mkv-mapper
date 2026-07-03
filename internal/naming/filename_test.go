@@ -6,6 +6,7 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/mkvmappertest"
 
 	"github.com/google/go-cmp/cmp"
@@ -33,7 +34,7 @@ func TestResolveFilename(t *testing.T) {
 			DisplaySize: "DisplaySize",
 			SourceFile:  "sourceFile.mpls",
 			SegmentMap:  "05,7",
-			Item: mkvmappertest.NewDiscItem(),
+			Item:        mkvmappertest.NewDiscItem(),
 		},
 		DiscDbDisc: discdb.Disc{},
 		MakeMkvTitle: makemkv.Title{
@@ -103,7 +104,7 @@ func TestEnsureUniqueFilename(t *testing.T) {
 		name                  string
 		base                  string
 		ext                   string
-		titleId               int
+		titleId               lines.TitleId
 		used                  map[string]struct{}
 		wantFilename          string
 		wantCollisionResolved bool

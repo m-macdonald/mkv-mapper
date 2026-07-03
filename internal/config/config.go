@@ -11,15 +11,16 @@ import (
 )
 
 const (
+	CachePath        = "cachePath"
+	ConfigFilename   = "config"
+	DiscMode         = "disc.mode"
 	DiscRoot         = "discRoot"
+	EnvPrefix        = "MKVMAP"
 	LogLevel         = "logLevel"
 	MakeMkvPath      = "makemkvPath"
 	OutputDir        = "outputDir"
-	TemplateOverride = "templates.override"
-	CachePath        = "cachePath"
 	ProgramDirname   = "mkv-mapper"
-	EnvPrefix        = "MKVMAP"
-	ConfigFilename   = "config"
+	TemplateOverride = "templates.override"
 )
 
 type Config struct {
@@ -29,7 +30,14 @@ type Config struct {
 	MakeMkvPath string         `mapstructure:"makemkvPath"`
 	OutputDir   string         `mapstructure:"outputDir"`
 	Templates   TemplateConfig `mapstructure:"templates"`
+	Disc        DiscConfig     `mapstructure:"disc"`
 }
+
+type DiscConfig struct {
+	Mode SelectionMode `mapstructure:"mode"`
+}
+
+type RipConfig struct{}
 
 type TemplateConfig struct {
 	Episode  string `mapstructure:"episode"`
@@ -54,6 +62,9 @@ func DefaultConfig() Config {
 			Episode: "{{.Media.Title}}/Season {{.Item.Season}}/{{.Disc.SeriesTitle}} - S{{pad 2 .Item.Season}}E{{.Item.Episode}} - {{.Item.Title}}",
 			Extra:   "Extras/{{.Item.Title}}",
 			Unknown: "{{.MakeMkv.OutputFileName}}",
+		},
+		Disc: DiscConfig{
+			Mode: ModeFullAuto,
 		},
 	}
 }
@@ -101,6 +112,17 @@ func mergeConfig(base Config, user Config) Config {
 	}
 
 	result.Templates = mergeTemplates(base.Templates, user.Templates)
+	result.Disc = mergeDisc(base.Disc, user.Disc)
+
+	return result
+}
+
+func mergeDisc(base DiscConfig, user DiscConfig) DiscConfig {
+	result := base
+
+	if user.Mode != "" {
+		result.Mode = user.Mode
+	}
 
 	return result
 }

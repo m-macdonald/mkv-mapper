@@ -10,7 +10,7 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
-	"m-macdonald/mkv-mapper/internal/display"
+	"m-macdonald/mkv-mapper/internal/terminal"
 	"m-macdonald/mkv-mapper/internal/event"
 
 	"github.com/spf13/cobra"
@@ -38,7 +38,9 @@ func runRip(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	plan, err := services.Engine.BuildPlan(
+	engine := services.NewEngine(terminal.NewSelector())
+
+	plan, err := engine.BuildPlan(
 		cmd.Context(),
 		cfg.DiscRoot,
 		cfg.OutputDir,
@@ -46,18 +48,19 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	validatedPlan := services.Engine.ValidatePlan(plan)
+	selectedPlan, err := engine.SelectPlan(cfg.Disc.Mode, plan)
+	validatedPlan := engine.ValidatePlan(selectedPlan)
 
-	previewRenderer := display.NewPreviewRenderer(os.Stdout);
+	previewRenderer := terminal.NewPreviewRenderer(os.Stdout);
 	previewRenderer.Render(validatedPlan)
 
 	interactive := detectInteractiveOutput(os.Stdout)
-	renderer := display.NewProgressRenderer(os.Stdout, interactive)
+	renderer := terminal.NewProgressRenderer(os.Stdout, interactive)
 	defer renderer.Close()
 
-	err = services.Engine.RunPlan(
+	err = engine.RunPlan(
 		cmd.Context(),
-		*validatedPlan,
+		validatedPlan,
 		func(e event.Event) {
 			err := renderer.HandleEvent(e)
 			if err != nil {

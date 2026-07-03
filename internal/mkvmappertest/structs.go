@@ -3,6 +3,7 @@ package mkvmappertest
 import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 )
 
 func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
@@ -30,7 +31,7 @@ func WithOutputFilename(outputFilename string) func(*makemkv.Title) {
 	}
 }
 
-func WithTitleId(titleId int) func(*makemkv.Title) {
+func WithTitleId(titleId lines.TitleId) func(*makemkv.Title) {
 	return func(title *makemkv.Title) {
 		title.TitleId = titleId
 	}

@@ -90,22 +90,22 @@ func TestBuildPlan(t *testing.T) {
 			if test.wantErr {
 				return
 			}
-			if len(plan.DiscPlan.Titles) != test.wantTitles {
-				t.Errorf("expected %d titles, got %d", test.wantTitles, len(plan.DiscPlan.Titles))
+			if len(plan.Titles) != test.wantTitles {
+				t.Errorf("expected %d titles, got %d", test.wantTitles, len(plan.Titles))
 			}
-			if plan.DiscPlan.MediaTitle != test.discRecord.Media.Title {
-				t.Errorf("expected MediaTitle %q, got %q", test.discRecord.Media.Title, plan.DiscPlan.MediaTitle)
+			if plan.MediaInfo.Title != test.discRecord.Media.Title {
+				t.Errorf("expected MediaTitle %q, got %q", test.discRecord.Media.Title, plan.MediaInfo.Title)
 			}
-			if plan.DiscPlan.MediaYear != test.discRecord.Media.Year {
-				t.Errorf("expected MediaYear %d, got %d", test.discRecord.Media.Year, plan.DiscPlan.MediaYear)
+			if plan.MediaInfo.Year != test.discRecord.Media.Year {
+				t.Errorf("expected MediaYear %d, got %d", test.discRecord.Media.Year, plan.MediaInfo.Year)
 			}
-			if plan.DiscPlan.DiscRoot != "/disc" {
-				t.Errorf("expected DiscRoot %q, got %q", "/disc", plan.DiscPlan.DiscRoot)
+			if plan.DiscRoot != "/disc" {
+				t.Errorf("expected DiscRoot %q, got %q", "/disc", plan.DiscRoot)
 			}
-			if plan.DiscPlan.OutputDir != "/output" {
-				t.Errorf("expected OutputDir %q, got %q", "/output", plan.DiscPlan.OutputDir)
+			if plan.OutputDir != "/output" {
+				t.Errorf("expected OutputDir %q, got %q", "/output", plan.OutputDir)
 			}
-			for _, title := range plan.DiscPlan.Titles {
+			for _, title := range plan.Titles {
 				if title.FinalName == "" {
 					t.Error("expected non-empty FinalName")
 				}
@@ -257,13 +257,13 @@ func TestResolveFilenames(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			plan := &DiscPlan{
+			plan := &Plan{
 				Titles: make([]TitlePlan, 0),
 			}
 			report := &BuildReport{
 				Warnings: make([]PlanWarning, 0),
 			}
-			err := resolveFilenames(test.config, test.mappings, discRecord, plan, report)
+			err := resolveFilenames(test.config, test.mappings, discRecord, plan)
 			if (err != nil) != test.wantErr {
 				t.Fatalf("unexpected error: %v", err)
 			}

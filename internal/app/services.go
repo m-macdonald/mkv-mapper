@@ -9,16 +9,17 @@ import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/planner"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type Services struct {
-	Engine *engine.Engine
-	Logger *zap.SugaredLogger
-
-	closers []io.Closer
+	closers       []io.Closer
+	discdbClient  *discdb.CachedClient
+	Logger        *zap.SugaredLogger
+	makemkvClient *makemkv.Client
 }
 
 func BuildServices(cfg config.Config) (*Services, error) {
@@ -44,16 +45,16 @@ func BuildServices(cfg config.Config) (*Services, error) {
 		return nil, err
 	}
 
-	engine := engine.New(
-		makemkvClient,
-		discdbClient,
-		logger.Named("engine"))
-
 	return &Services{
-		Engine: engine,
-		Logger:  logger,
-		closers: []io.Closer{cache},
+		closers:       []io.Closer{cache},
+		discdbClient:  discdbClient,
+		Logger:        logger,
+		makemkvClient: makemkvClient,
 	}, nil
+}
+
+func (s *Services) NewEngine(selector planner.Selector) *engine.Engine {
+	return engine.New(s.makemkvClient, s.discdbClient, s.Logger.Named("engine"), &selector)
 }
 
 func (s *Services) Close() error {

@@ -8,7 +8,7 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
-	"m-macdonald/mkv-mapper/internal/display"
+	"m-macdonald/mkv-mapper/internal/terminal"
 
 	"github.com/spf13/cobra"
 )
@@ -35,7 +35,9 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	plan, err := services.Engine.BuildPlan(
+	engine := services.NewEngine(terminal.NewSelector())
+
+	plan, err := engine.BuildPlan(
 		cmd.Context(),
 		cfg.DiscRoot,
 		cfg.OutputDir,
@@ -43,9 +45,13 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	validatedPlan := services.Engine.ValidatePlan(plan)
+	selectedPlan, err := engine.SelectPlan(cfg.Disc.Mode, plan)
+	if err != nil {
+		return err
+	}
+	validatedPlan := engine.ValidatePlan(selectedPlan)
 
-	previewRenderer := display.NewPreviewRenderer(os.Stdout)
+	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
 	previewRenderer.Render(validatedPlan)
 
 	return nil

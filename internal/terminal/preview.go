@@ -1,12 +1,12 @@
-package terminal 
+package terminal
 
 import (
 	"fmt"
 	"io"
 
-	"m-macdonald/mkv-mapper/internal/engine"
-	"m-macdonald/mkv-mapper/internal/format"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/util"
 )
 
 type PreviewRenderer struct {
@@ -19,7 +19,7 @@ func NewPreviewRenderer(out io.Writer) PreviewRenderer {
 	}
 }
 
-func (p *PreviewRenderer) Render(plan *engine.ValidatedPlan) error {
+func (p *PreviewRenderer) Render(plan planner.ValidatedPlan) error {
 	if err := p.renderHeader(plan); err != nil {
 		return err
 	}
@@ -32,31 +32,31 @@ func (p *PreviewRenderer) Render(plan *engine.ValidatedPlan) error {
 	return nil
 }
 
-func (p *PreviewRenderer) renderHeader(plan *engine.ValidatedPlan) error {
+func (p *PreviewRenderer) renderHeader(plan planner.ValidatedPlan) error {
 	_, err := fmt.Fprintf(p.out, "%s (%d) — %s\nHash: %s\n\n",
-		plan.DiscPlan.MediaTitle,
-		plan.DiscPlan.MediaYear,
-		plan.DiscPlan.DiscFormat,
-		plan.DiscPlan.DiscHash,
+		plan.MediaInfo.Title,
+		plan.MediaInfo.Year,
+		plan.Disc.Format,
+		plan.Disc.Hash,
 	)
 	return err
 }
 
-func (p *PreviewRenderer) renderTitles(plan *engine.ValidatedPlan) error {
+func (p *PreviewRenderer) renderTitles(plan planner.ValidatedPlan) error {
 	warningsByTitle := indexByTitleId(
 		plan.BuildReport.Warnings,
-		func(w planner.PlanWarning) *int { return &w.TitleId })
+		func(w planner.PlanWarning) *lines.TitleId { return &w.TitleId })
 	validationsByTitle := indexByTitleId(
 		plan.ValidationReport.Results,
-		func(v engine.ValidationResult) *int { return v.TitleId })
+		func(v planner.ValidationResult) *lines.TitleId { return v.TitleId })
 	if _, err := fmt.Fprintln(p.out, "Titles:"); err != nil {
 		return err
 	}
-	for _, title := range plan.DiscPlan.Titles {
+	for _, title := range plan.Titles {
 		_, err := fmt.Fprintf(p.out, "  %s → %s (%s)\n",
 			title.MakeMkvOutputFile,
 			title.FinalName,
-			format.Size(title.EstimatedSize),
+			util.FormatSize(title.EstimatedSize),
 		)
 		if err != nil {
 			return err
@@ -77,8 +77,8 @@ func (p *PreviewRenderer) renderTitles(plan *engine.ValidatedPlan) error {
 	return nil
 }
 
-func (r *PreviewRenderer) renderValidation(plan *engine.ValidatedPlan) error {
-	var discValidations []engine.ValidationResult
+func (r *PreviewRenderer) renderValidation(plan planner.ValidatedPlan) error {
+	var discValidations []planner.ValidationResult
 	for _, validation := range plan.ValidationReport.Results {
 		// Validations that are not associated with a title id are considered "disc-level"
 		if validation.TitleId == nil {
@@ -101,8 +101,8 @@ func (r *PreviewRenderer) renderValidation(plan *engine.ValidatedPlan) error {
 	return nil
 }
 
-func indexByTitleId[T any](items []T, getId func(T) *int) map[int][]T {
-	index := map[int][]T{}
+func indexByTitleId[T any](items []T, getId func(T) *lines.TitleId) map[lines.TitleId][]T {
+	index := map[lines.TitleId][]T{}
 	for _, item := range items {
 		id := getId(item)
 		if id != nil {
@@ -112,13 +112,13 @@ func indexByTitleId[T any](items []T, getId func(T) *int) map[int][]T {
 	return index
 }
 
-func getValidationSymbol(status engine.ValidationStatus) string {
+func getValidationSymbol(status planner.ValidationStatus) string {
 	switch status {
-	case engine.ValidationStatusPass:
+	case planner.ValidationStatusPass:
 		return "✓"
-	case engine.ValidationStatusWarn:
+	case planner.ValidationStatusWarn:
 		return "⚠"
-	case engine.ValidationStatusFail:
+	case planner.ValidationStatusFail:
 		return "✗"
 	}
 	return ""

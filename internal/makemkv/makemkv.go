@@ -112,7 +112,7 @@ type Title struct {
 	OutputFilename string
 	Segments       string
 	OutputFileSize uint64
-	TitleId        int
+	TitleId        lines.TitleId
 }
 
 func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, error) {
@@ -120,7 +120,7 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 	defer cancel()
 	resultChan := c.runCmd(cancelCtx, "info", discRoot)
 
-	titleMap := map[int]*Title{}
+	titleMap := map[lines.TitleId]*Title{}
 	for result := range resultChan {
 		if result.Error != nil {
 			return nil, result.Error

@@ -18,14 +18,10 @@ import (
 )
 
 type Engine struct {
-	makemkv *makemkv.Client
-	discdb  *discdb.CachedClient
-	logger  *zap.SugaredLogger
-}
-
-type ValidatedPlan struct {
-	planner.Plan
-	ValidationReport ValidationReport
+	makemkv  *makemkv.Client
+	discdb   *discdb.CachedClient
+	selector *planner.Selector
+	logger   *zap.SugaredLogger
 }
 
 type EngineEventSink func(event.Event)
@@ -34,11 +30,13 @@ func New(
 	makemkv *makemkv.Client,
 	discdb *discdb.CachedClient,
 	logger *zap.SugaredLogger,
+	selector *planner.Selector,
 ) *Engine {
 	return &Engine{
-		makemkv: makemkv,
-		discdb:  discdb,
-		logger:  logger,
+		makemkv:  makemkv,
+		discdb:   discdb,
+		logger:   logger,
+		selector: selector,
 	}
 }
 
@@ -58,7 +56,7 @@ func (e *Engine) BuildPlan(
 		return planner.Plan{}, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
 	}
 
-	//The above switch makes sure that me can safely get the first (and only) element
+	// The above switch makes sure that me can safely get the first (and only) element
 	root := discMounts[0]
 
 	hash, err := files.Hash(root)
@@ -79,16 +77,33 @@ func (e *Engine) BuildPlan(
 	return planner.BuildPlan(root, outputDir, templateConfig, disc, titles)
 }
 
-func (e *Engine) ValidatePlan(plan planner.Plan) *ValidatedPlan {
-	return &ValidatedPlan{
-		Plan:             plan,
-		ValidationReport: validatePlan(plan.DiscPlan),
+func (e *Engine) SelectPlan(mode config.SelectionMode, plan planner.Plan) (planner.SelectedPlan, error) {
+	var selection planner.Selection
+	var err error
+	switch mode {
+	case config.ModeFullAuto:
+		selection = planner.FullSelection(plan)
+	case config.ModeTrimmedAuto:
+		selection = planner.TrimmedSelection(plan)
+	case config.ModeManual:
+		selection, err = (*e.selector).Select(plan)
+	default:
+		return planner.SelectedPlan{}, fmt.Errorf("unknown selection mode: %v", mode)
 	}
+	if err != nil {
+		return planner.SelectedPlan{}, err
+	}
+
+	return planner.NewSelectedPlan(plan, selection)
+}
+
+func (e *Engine) ValidatePlan(plan planner.SelectedPlan) planner.ValidatedPlan {
+	return planner.ValidatePlan(plan)
 }
 
 func (e *Engine) RunPlan(
 	ctx context.Context,
-	plan ValidatedPlan,
+	plan planner.ValidatedPlan,
 	onEvent EngineEventSink,
 ) error {
 	if plan.ValidationReport.HasErrors() {
@@ -96,8 +111,8 @@ func (e *Engine) RunPlan(
 	}
 	err := e.makemkv.RipDisc(
 		ctx,
-		plan.DiscPlan.DiscRoot,
-		plan.DiscPlan.OutputDir,
+		plan.DiscRoot,
+		plan.OutputDir,
 		func(pl lines.ParsedLine) {
 			if event, ok := parsedLineToEvent(pl); ok {
 				onEvent(event)
@@ -108,10 +123,10 @@ func (e *Engine) RunPlan(
 	}
 
 	mappings := make(map[string]string)
-	for _, titlePlan := range plan.DiscPlan.Titles {
+	for _, titlePlan := range plan.Titles {
 		mappings[titlePlan.MakeMkvOutputFile] = titlePlan.FinalName
 	}
-	errs := mapper.RenameTitles(plan.DiscPlan.OutputDir, plan.DiscPlan.OutputDir, mappings)
+	errs := mapper.RenameTitles(plan.OutputDir, plan.OutputDir, mappings)
 	if len(errs) != 0 {
 		e.logger.Errorf("%v", errs)
 	}

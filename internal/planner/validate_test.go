@@ -1,7 +1,6 @@
-package engine
+package planner
 
 import (
-	"m-macdonald/mkv-mapper/internal/planner"
 	"math"
 	"os"
 	"path/filepath"
@@ -48,7 +47,7 @@ func TestValidateOutputDir(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			outputDir := test.setup(t)
-			plan := planner.DiscPlan{OutputDir: outputDir}
+			plan := SelectedPlan{OutputDir: outputDir}
 			report := &ValidationReport{}
 			validateOutputDir(plan, report)
 
@@ -70,7 +69,7 @@ func TestValidateDiskSpace(t *testing.T) {
 	tests := []struct {
 		name       string
 		setup      func(t *testing.T) string
-		titles     []planner.TitlePlan
+		titles     []TitlePlan
 		wantStatus ValidationStatus
 		wantCode   ValidationCode
 	}{
@@ -79,7 +78,7 @@ func TestValidateDiskSpace(t *testing.T) {
 			setup: func(t *testing.T) string {
 				return t.TempDir()
 			},
-			titles:     []planner.TitlePlan{{EstimatedSize: 1000}},
+			titles:     []TitlePlan{{EstimatedSize: 1000}},
 			wantStatus: ValidationStatusPass,
 		},
 		{
@@ -87,7 +86,7 @@ func TestValidateDiskSpace(t *testing.T) {
 			setup: func(t *testing.T) string {
 				return t.TempDir()
 			},
-			titles:     []planner.TitlePlan{{EstimatedSize: math.MaxUint64}},
+			titles:     []TitlePlan{{EstimatedSize: math.MaxUint64}},
 			wantStatus: ValidationStatusFail,
 			wantCode:   ValidationInsufficientSpace,
 		},
@@ -96,7 +95,7 @@ func TestValidateDiskSpace(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			outputDir := test.setup(t)
-			plan := planner.DiscPlan{
+			plan := SelectedPlan{
 				OutputDir: outputDir,
 				Titles:    test.titles,
 			}
@@ -120,15 +119,15 @@ func TestValidateDiskSpace(t *testing.T) {
 func TestValidateExistingFiles(t *testing.T) {
 	tests := []struct {
 		name       string
-		setup      func(t *testing.T) (string, []planner.TitlePlan)
+		setup      func(t *testing.T) (string, []TitlePlan)
 		wantStatus ValidationStatus
 		wantCode   ValidationCode
 	}{
 		{
 			name: "no existing files",
-			setup: func(t *testing.T) (string, []planner.TitlePlan) {
+			setup: func(t *testing.T) (string, []TitlePlan) {
 				dir := t.TempDir()
-				return dir, []planner.TitlePlan{
+				return dir, []TitlePlan{
 					{FinalName: "movie.mkv", TitleId: 1},
 				}
 			},
@@ -136,13 +135,13 @@ func TestValidateExistingFiles(t *testing.T) {
 		},
 		{
 			name: "existing file conflict",
-			setup: func(t *testing.T) (string, []planner.TitlePlan) {
+			setup: func(t *testing.T) (string, []TitlePlan) {
 				dir := t.TempDir()
 				path := filepath.Join(dir, "movie.mkv")
 				if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
 					t.Fatal(err)
 				}
-				return dir, []planner.TitlePlan{
+				return dir, []TitlePlan{
 					{FinalName: "movie.mkv", TitleId: 1},
 				}
 			},
@@ -154,7 +153,7 @@ func TestValidateExistingFiles(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			outputDir, titles := test.setup(t)
-			plan := planner.DiscPlan{
+			plan := SelectedPlan{
 				OutputDir: outputDir,
 				Titles:    titles,
 			}

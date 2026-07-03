@@ -1,4 +1,4 @@
-package engine
+package planner
 
 import (
 	"errors"
@@ -8,9 +8,15 @@ import (
 	"path/filepath"
 
 	"m-macdonald/mkv-mapper/internal/files"
-	"m-macdonald/mkv-mapper/internal/format"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/util"
 )
+
+type ValidatedPlan struct {
+	PlanBase
+	BuildReport      BuildReport
+	ValidationReport ValidationReport
+}
 
 type ValidationReport struct {
 	Results []ValidationResult
@@ -51,7 +57,7 @@ type ValidationResult struct {
 	Code    ValidationCode
 	Message string
 	Cause   error
-	TitleId *int
+	TitleId *lines.TitleId
 }
 
 type ValidationStatus string
@@ -70,17 +76,21 @@ const (
 	ValidationOutputDirInvalid  ValidationCode = "output_dir_invalid"
 )
 
-func validatePlan(plan planner.DiscPlan) ValidationReport {
+func ValidatePlan(plan SelectedPlan) ValidatedPlan {
 	report := &ValidationReport{}
 
 	validateOutputDir(plan, report)
 	validateDiskSpace(plan, report)
 	validateExistingFiles(plan, report)
 
-	return *report
+	return ValidatedPlan{
+		PlanBase: plan.PlanBase,
+		BuildReport: plan.BuildReport,
+		ValidationReport: *report,
+	}
 }
 
-func validateOutputDir(plan planner.DiscPlan, report *ValidationReport) {
+func validateOutputDir(plan SelectedPlan, report *ValidationReport) {
 	info, err := os.Stat(plan.OutputDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -120,7 +130,7 @@ func validateOutputDir(plan planner.DiscPlan, report *ValidationReport) {
 	})
 }
 
-func validateDiskSpace(plan planner.DiscPlan, report *ValidationReport) {
+func validateDiskSpace(plan SelectedPlan, report *ValidationReport) {
 	free, err := files.GetFreeDiskSpace(plan.OutputDir)
 	if err != nil {
 		report.AddResult(ValidationResult{
@@ -145,8 +155,8 @@ func validateDiskSpace(plan planner.DiscPlan, report *ValidationReport) {
 			Message: fmt.Sprintf(
 				"insufficient disk space %s: need %s, have %s",
 				plan.OutputDir,
-				format.Size(required),
-				format.Size(free)),
+				util.FormatSize(required),
+				util.FormatSize(free)),
 		})
 
 		return
@@ -157,12 +167,12 @@ func validateDiskSpace(plan planner.DiscPlan, report *ValidationReport) {
 		Message: fmt.Sprintf(
 			"sufficient disk space %s: need %s, have %s",
 			plan.OutputDir,
-			format.Size(required),
-			format.Size(free)),
+			util.FormatSize(required),
+			util.FormatSize(free)),
 	})
 }
 
-func validateExistingFiles(plan planner.DiscPlan, report *ValidationReport) {
+func validateExistingFiles(plan SelectedPlan, report *ValidationReport) {
 	hasIssue := false
 	for _, title := range plan.Titles {
 		outPath := filepath.Join(plan.OutputDir, title.FinalName)
