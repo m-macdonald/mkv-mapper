@@ -41,6 +41,8 @@ func TrimmedSelection(plan Plan) Selection {
 
 type SelectedPlan struct {
 	PlanBase
+	// Indicates if the selected titles include every title from the plan
+	IsAllTitles bool
 	BuildReport BuildReport
 }
 
@@ -64,5 +66,9 @@ func NewSelectedPlan(plan Plan, selection Selection) (SelectedPlan, error) {
 	}
 	updatedBase := plan.PlanBase
 	updatedBase.Titles = titles
-	return SelectedPlan{PlanBase: updatedBase, BuildReport: plan.BuildReport}, nil
+	return SelectedPlan{
+		PlanBase:    updatedBase,
+		IsAllTitles: len(plan.Titles) == len(selection.SelectedIds),
+		BuildReport: plan.BuildReport,
+	}, nil
 }

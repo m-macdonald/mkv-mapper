@@ -15,6 +15,7 @@ import (
 type ValidatedPlan struct {
 	PlanBase
 	BuildReport      BuildReport
+	IsAllTitles      bool
 	ValidationReport ValidationReport
 }
 
@@ -84,8 +85,9 @@ func ValidatePlan(plan SelectedPlan) ValidatedPlan {
 	validateExistingFiles(plan, report)
 
 	return ValidatedPlan{
-		PlanBase: plan.PlanBase,
-		BuildReport: plan.BuildReport,
+		PlanBase:         plan.PlanBase,
+		BuildReport:      plan.BuildReport,
+		IsAllTitles:      plan.IsAllTitles,
 		ValidationReport: *report,
 	}
 }

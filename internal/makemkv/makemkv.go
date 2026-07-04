@@ -107,6 +107,57 @@ func (c *Client) RipDisc(
 	return nil
 }
 
+func (c *Client) RipTitle(
+	ctx context.Context,
+	discRoot string,
+	outputDir string,
+	titleId lines.TitleId,
+	onLine LineSink,
+) error {
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultChan := c.runCmd(cancelCtx, "mkv", discRoot, fmt.Sprint(titleId), outputDir)
+
+	for result := range resultChan {
+		if result.Error != nil {
+			cancel()
+
+			return result.Error
+		}
+
+		if result.Line != nil {
+			onLine(result.Line)
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) BackupDisc(
+	ctx context.Context,
+	discRoot string,
+	outputDir string,
+	onLine LineSink,
+) error {
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultChan := c.runCmd(cancelCtx, "backup", "--decrypt", discRoot, outputDir)
+
+	for result := range resultChan {
+		if result.Error != nil {
+			cancel()
+
+			return result.Error
+		}
+
+		if result.Line != nil {
+			onLine(result.Line)
+		}
+	}
+
+	return nil
+}
+
 type Title struct {
 	SourceFilename string
 	OutputFilename string

@@ -109,17 +109,15 @@ func (e *Engine) RunPlan(
 	if plan.ValidationReport.HasErrors() {
 		return fmt.Errorf("plan has validation errors, aborting rip")
 	}
-	err := e.makemkv.RipDisc(
-		ctx,
-		plan.DiscRoot,
-		plan.OutputDir,
-		func(pl lines.ParsedLine) {
-			if event, ok := parsedLineToEvent(pl); ok {
-				onEvent(event)
-			}
-		})
-	if err != nil {
-		return err
+
+	if plan.IsAllTitles {
+		if err := e.ripAll(ctx, plan, onEvent); err != nil {
+			return err
+		}
+	} else {
+		if err := e.ripSelected(ctx, plan, onEvent); err != nil {
+			return err
+		}
 	}
 
 	mappings := make(map[string]string)
@@ -131,6 +129,37 @@ func (e *Engine) RunPlan(
 		e.logger.Errorf("%v", errs)
 	}
 
+	return nil
+}
+
+func (e *Engine) ripAll(ctx context.Context, plan planner.ValidatedPlan, onEvent EngineEventSink) error {
+	return e.makemkv.RipDisc(
+		ctx,
+		plan.DiscRoot,
+		plan.OutputDir,
+		func(pl lines.ParsedLine) {
+			if event, ok := parsedLineToEvent(pl); ok {
+				onEvent(event)
+			}
+		})
+}
+
+func (e *Engine) ripSelected(ctx context.Context, plan planner.ValidatedPlan, onEvent EngineEventSink) error {
+	for _, title := range plan.Titles {
+		err := e.makemkv.RipTitle(
+			ctx,
+			plan.DiscRoot,
+			plan.OutputDir,
+			title.TitleId,
+			func(pl lines.ParsedLine) {
+				if event, ok := parsedLineToEvent(pl); ok {
+					onEvent(event)
+				}
+			})
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
