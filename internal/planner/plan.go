@@ -24,6 +24,7 @@ type TitlePlan struct {
 	MakeMkvOutputFile string
 	FinalName         string
 	EstimatedSize     uint64
+	Duration          string
 	IsMatched         bool // Indicates if this title had a matching Item definition in TheDiscDb
 }
 
@@ -117,6 +118,7 @@ func resolveFilenames(
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,
 			FinalName:         filenameResolution.FinalName,
 			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
+			Duration:          mapping.DiscDbTitle.Duration,
 			IsMatched:         mapping.DiscDbTitle.Item != nil,
 		})
 	}

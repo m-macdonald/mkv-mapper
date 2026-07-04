@@ -6,6 +6,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/pterm/pterm"
 )
@@ -50,7 +51,7 @@ func formatTitleLabel(title planner.TitlePlan) string {
 		matched = " [matched]"
 	}
 	// This label is safe to key off of only because TitleId and FinalName are both unique. Bear this in mind when making any future changes
-	return fmt.Sprintf("%d: %s (%s)%s", title.TitleId, title.FinalName, title.EstimatedSize, matched)
+	return fmt.Sprintf("%d: %s (%s / %s)%s", title.TitleId, title.FinalName, title.Duration, util.FormatSize(title.EstimatedSize), matched)
 }
 
 type titleOption struct {
