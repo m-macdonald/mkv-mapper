@@ -20,7 +20,7 @@ import (
 type Engine struct {
 	makemkv  *makemkv.Client
 	discdb   *discdb.CachedClient
-	selector *planner.Selector
+	selector planner.Selector
 	logger   *zap.SugaredLogger
 }
 
@@ -30,7 +30,7 @@ func New(
 	makemkv *makemkv.Client,
 	discdb *discdb.CachedClient,
 	logger *zap.SugaredLogger,
-	selector *planner.Selector,
+	selector planner.Selector,
 ) *Engine {
 	return &Engine{
 		makemkv:  makemkv,
@@ -56,7 +56,7 @@ func (e *Engine) BuildPlan(
 		return planner.Plan{}, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
 	}
 
-	// The above switch makes sure that me can safely get the first (and only) element
+	// The above switch makes sure that we can safely get the first (and only) element
 	root := discMounts[0]
 
 	hash, err := files.Hash(root)
@@ -86,7 +86,7 @@ func (e *Engine) SelectPlan(mode config.SelectionMode, plan planner.Plan) (plann
 	case config.ModeTrimmedAuto:
 		selection = planner.TrimmedSelection(plan)
 	case config.ModeManual:
-		selection, err = (*e.selector).Select(plan)
+		selection, err = e.selector.Select(plan)
 	default:
 		return planner.SelectedPlan{}, fmt.Errorf("unknown selection mode: %v", mode)
 	}
