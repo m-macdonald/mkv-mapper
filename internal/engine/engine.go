@@ -98,7 +98,8 @@ func (e *Engine) SelectPlan(mode config.SelectionMode, plan planner.Plan) (plann
 }
 
 func (e *Engine) ValidatePlan(plan planner.SelectedPlan) planner.ValidatedPlan {
-	return planner.ValidatePlan(plan)
+	report := buildValidationReport(plan)
+	return planner.NewValidatedPlan(plan, report)
 }
 
 func (e *Engine) RunPlan(
