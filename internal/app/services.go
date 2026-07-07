@@ -9,7 +9,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/makemkv"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -53,8 +53,8 @@ func BuildServices(cfg config.Config) (*Services, error) {
 	}, nil
 }
 
-func (s *Services) NewEngine(selector planner.Selector) *engine.Engine {
-	return engine.New(s.makemkvClient, s.discdbClient, s.Logger.Named("engine"), &selector)
+func (s *Services) NewEngine(selector model.Selector) *engine.Engine {
+	return engine.New(s.makemkvClient, s.discdbClient, s.Logger.Named("engine"), selector)
 }
 
 func (s *Services) Close() error {
