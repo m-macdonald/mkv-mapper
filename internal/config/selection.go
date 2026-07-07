@@ -22,7 +22,7 @@ func (mode SelectionMode) Valid() bool {
 func ParseSelectionMode(str string) (SelectionMode, error) {
 	mode := SelectionMode(str)
 	if !mode.Valid() {
-		return "", fmt.Errorf("invalid mode %q (must be one of: %s, %s, %s)", ModeFullAuto, ModeTrimmedAuto, ModeManual)
+		return "", fmt.Errorf("invalid mode %q (must be one of: %s, %s, %s)", mode, ModeFullAuto, ModeTrimmedAuto, ModeManual)
 	}
 	return mode, nil
 }
