@@ -1,4 +1,4 @@
-package planner
+package model 
 
 import "m-macdonald/mkv-mapper/internal/makemkv/lines"
 
@@ -7,14 +7,6 @@ type ValidatedPlan struct {
 	BuildReport      BuildReport
 	IsAllTitles      bool
 	ValidationReport ValidationReport
-}
-
-func NewValidatedPlan(selectedPlan SelectedPlan, report ValidationReport) ValidatedPlan {
-	return ValidatedPlan{
-		PlanBase:         selectedPlan.PlanBase,
-		BuildReport:      selectedPlan.BuildReport,
-		ValidationReport: report,
-	}
 }
 
 type ValidationReport struct {

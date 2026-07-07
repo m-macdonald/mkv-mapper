@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
 )
 
@@ -19,7 +19,7 @@ func NewPreviewRenderer(out io.Writer) PreviewRenderer {
 	}
 }
 
-func (p *PreviewRenderer) Render(plan planner.ValidatedPlan) error {
+func (p *PreviewRenderer) Render(plan model.ValidatedPlan) error {
 	if err := p.renderHeader(plan); err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (p *PreviewRenderer) Render(plan planner.ValidatedPlan) error {
 	return nil
 }
 
-func (p *PreviewRenderer) renderHeader(plan planner.ValidatedPlan) error {
+func (p *PreviewRenderer) renderHeader(plan model.ValidatedPlan) error {
 	_, err := fmt.Fprintf(p.out, "%s (%d) — %s\nHash: %s\n\n",
 		plan.MediaInfo.Title,
 		plan.MediaInfo.Year,
@@ -42,13 +42,13 @@ func (p *PreviewRenderer) renderHeader(plan planner.ValidatedPlan) error {
 	return err
 }
 
-func (p *PreviewRenderer) renderTitles(plan planner.ValidatedPlan) error {
+func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 	warningsByTitle := indexByTitleId(
 		plan.BuildReport.Warnings,
-		func(w planner.PlanWarning) *lines.TitleId { return &w.TitleId })
+		func(w model.PlanWarning) *lines.TitleId { return &w.TitleId })
 	validationsByTitle := indexByTitleId(
 		plan.ValidationReport.Results,
-		func(v planner.ValidationResult) *lines.TitleId { return v.TitleId })
+		func(v model.ValidationResult) *lines.TitleId { return v.TitleId })
 	if _, err := fmt.Fprintln(p.out, "Titles:"); err != nil {
 		return err
 	}
@@ -77,8 +77,8 @@ func (p *PreviewRenderer) renderTitles(plan planner.ValidatedPlan) error {
 	return nil
 }
 
-func (r *PreviewRenderer) renderValidation(plan planner.ValidatedPlan) error {
-	var discValidations []planner.ValidationResult
+func (r *PreviewRenderer) renderValidation(plan model.ValidatedPlan) error {
+	var discValidations []model.ValidationResult
 	for _, validation := range plan.ValidationReport.Results {
 		// Validations that are not associated with a title id are considered "disc-level"
 		if validation.TitleId == nil {
@@ -112,13 +112,13 @@ func indexByTitleId[T any](items []T, getId func(T) *lines.TitleId) map[lines.Ti
 	return index
 }
 
-func getValidationSymbol(status planner.ValidationStatus) string {
+func getValidationSymbol(status model.ValidationStatus) string {
 	switch status {
-	case planner.ValidationStatusPass:
+	case model.ValidationStatusPass:
 		return "✓"
-	case planner.ValidationStatusWarn:
+	case model.ValidationStatusWarn:
 		return "⚠"
-	case planner.ValidationStatusFail:
+	case model.ValidationStatusFail:
 		return "✗"
 	}
 	return ""

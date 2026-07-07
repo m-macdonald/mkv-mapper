@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 )
 
 func TestSelectEmptyPlan(t *testing.T) {
 	selector := NewSelector()
-	_, err := selector.Select(planner.Plan{})
+	_, err := selector.Select(model.Plan{})
 	if err == nil {
 		t.Error("Select() with empty plan should return error")
 	}
@@ -21,12 +21,12 @@ func TestSelectEmptyPlan(t *testing.T) {
 func TestFormatTitleLabel(t *testing.T) {
 	tests := []struct {
 		name      string
-		title     planner.TitlePlan
+		title     model.TitlePlan
 		wantLabel string
 	}{
 		{
 			name: "matched title",
-			title: planner.TitlePlan{
+			title: model.TitlePlan{
 				TitleId:       1,
 				FinalName:     "The Movie.mkv",
 				EstimatedSize: 5368709120, // 5 GB
@@ -37,7 +37,7 @@ func TestFormatTitleLabel(t *testing.T) {
 		},
 		{
 			name: "unmatched title",
-			title: planner.TitlePlan{
+			title: model.TitlePlan{
 				TitleId:       2,
 				FinalName:     "Unknown Title.mkv",
 				EstimatedSize: 1073741824, // 1 GB
@@ -48,7 +48,7 @@ func TestFormatTitleLabel(t *testing.T) {
 		},
 		{
 			name: "large size",
-			title: planner.TitlePlan{
+			title: model.TitlePlan{
 				TitleId:       3,
 				FinalName:     "Feature.mkv",
 				EstimatedSize: 88236484608, // 82.1 GB
@@ -59,7 +59,7 @@ func TestFormatTitleLabel(t *testing.T) {
 		},
 		{
 			name: "small size",
-			title: planner.TitlePlan{
+			title: model.TitlePlan{
 				TitleId:       4,
 				FinalName:     "Trailer.mkv",
 				EstimatedSize: 104857600, // 100 MB
@@ -81,7 +81,7 @@ func TestFormatTitleLabel(t *testing.T) {
 }
 
 func TestTitleOptions(t *testing.T) {
-	titles := []planner.TitlePlan{
+	titles := []model.TitlePlan{
 		{
 			TitleId:       1,
 			FinalName:     "Movie.mkv",
@@ -128,7 +128,7 @@ func TestTitleOptions(t *testing.T) {
 }
 
 func TestTitleOptionsIdFor(t *testing.T) {
-	titles := []planner.TitlePlan{
+	titles := []model.TitlePlan{
 		{TitleId: 10, FinalName: "First.mkv", EstimatedSize: 1000, IsMatched: true},
 		{TitleId: 25, FinalName: "Second.mkv", EstimatedSize: 2000, IsMatched: false},
 		{TitleId: 42, FinalName: "Third.mkv", EstimatedSize: 3000, IsMatched: true},
@@ -188,14 +188,14 @@ func TestTitleOptionsIdFor(t *testing.T) {
 }
 
 func TestTitleOptionsRoundtrip(t *testing.T) {
-	original := planner.TitlePlan{
+	original := model.TitlePlan{
 		TitleId:       99,
 		FinalName:     "Roundtrip Test.mkv",
 		EstimatedSize: 7516192768,
 		IsMatched:     true,
 	}
 
-	opts := newTitleOptions([]planner.TitlePlan{original})
+	opts := newTitleOptions([]model.TitlePlan{original})
 	label := formatTitleLabel(original)
 
 	recoveredId, found := opts.idFor(label)

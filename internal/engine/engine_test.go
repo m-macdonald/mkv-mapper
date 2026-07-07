@@ -8,7 +8,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/event"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	th "m-macdonald/mkv-mapper/internal/mkvmappertest"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -81,7 +81,7 @@ func TestSelectPlanFullAuto(t *testing.T) {
 		th.TestTitlePlan(3, "Trailer.mkv", 500*th.MB, true),
 	)
 
-	eng := Engine{selector: th.NewSelector(planner.Selection{})}
+	eng := Engine{selector: th.NewSelector(model.Selection{})}
 	selectedPlan, err := eng.SelectPlan(config.ModeFullAuto, plan)
 	if err != nil {
 		t.Fatalf("SelectPlan failed: %v", err)
@@ -101,7 +101,7 @@ func TestSelectPlanTrimmedAuto(t *testing.T) {
 		th.TestTitlePlan(3, "Trailer.mkv", 500*th.MB, true),
 	)
 
-	eng := Engine{selector: th.NewSelector(planner.Selection{})}
+	eng := Engine{selector: th.NewSelector(model.Selection{})}
 	selectedPlan, err := eng.SelectPlan(config.ModeTrimmedAuto, plan)
 	if err != nil {
 		t.Fatalf("SelectPlan failed: %v", err)
@@ -164,18 +164,18 @@ func TestSelectPlanSelectorError(t *testing.T) {
 }
 
 func TestValidatePlanConstruction(t *testing.T) {
-	selectedPlan := planner.SelectedPlan{
-		PlanBase: planner.PlanBase{
+	selectedPlan := model.SelectedPlan{
+		PlanBase: model.PlanBase{
 			OutputDir: "/test/output",
 			DiscRoot:  "/test/disc",
-			Titles: []planner.TitlePlan{
+			Titles: []model.TitlePlan{
 				{TitleId: 1, FinalName: "Movie.mkv", EstimatedSize: 5 * th.GB},
 			},
 		},
-		BuildReport: planner.BuildReport{Warnings: make([]planner.PlanWarning, 0)},
+		BuildReport: model.BuildReport{Warnings: make([]model.PlanWarning, 0)},
 	}
 
-	eng := Engine{selector: th.NewSelector(planner.Selection{})}
+	eng := Engine{selector: th.NewSelector(model.Selection{})}
 	validatedPlan := eng.ValidatePlan(selectedPlan)
 
 	if validatedPlan.OutputDir != "/test/output" {

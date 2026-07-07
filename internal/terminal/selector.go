@@ -5,7 +5,7 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/pterm/pterm"
@@ -17,9 +17,9 @@ func NewSelector() Selector {
 	return Selector{}
 }
 
-func (Selector) Select(plan planner.Plan) (planner.Selection, error) {
+func (Selector) Select(plan model.Plan) (model.Selection, error) {
 	if len(plan.Titles) == 0 {
-		return planner.Selection{}, fmt.Errorf("no titles available to select from")
+		return model.Selection{}, fmt.Errorf("no titles available to select from")
 	}
 
 	options := newTitleOptions(plan.Titles)
@@ -30,10 +30,10 @@ func (Selector) Select(plan planner.Plan) (planner.Selection, error) {
 		WithMaxHeight(15).
 		Show()
 	if err != nil {
-		return planner.Selection{}, fmt.Errorf("title selection: %w", err)
+		return model.Selection{}, fmt.Errorf("title selection: %w", err)
 	}
 	if len(selected) == 0 {
-		return planner.Selection{}, fmt.Errorf("at least one title must be selected")
+		return model.Selection{}, fmt.Errorf("at least one title must be selected")
 	}
 
 	ids := make([]lines.TitleId, 0, len(selected))
@@ -42,10 +42,10 @@ func (Selector) Select(plan planner.Plan) (planner.Selection, error) {
 			ids = append(ids, id)
 		}
 	}
-	return planner.Selection{Mode: config.ModeManual, SelectedIds: ids}, nil
+	return model.Selection{Mode: config.ModeManual, SelectedIds: ids}, nil
 }
 
-func formatTitleLabel(title planner.TitlePlan) string {
+func formatTitleLabel(title model.TitlePlan) string {
 	matched := ""
 	if title.IsMatched {
 		matched = " [matched]"
@@ -61,7 +61,7 @@ type titleOption struct {
 
 type titleOptions []titleOption
 
-func newTitleOptions(titles []planner.TitlePlan) titleOptions {
+func newTitleOptions(titles []model.TitlePlan) titleOptions {
 	opts := make(titleOptions, 0, len(titles))
 	for _, title := range titles {
 		opts = append(opts, titleOption{id: title.TitleId, label: formatTitleLabel(title)})

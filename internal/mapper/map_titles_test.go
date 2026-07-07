@@ -78,7 +78,7 @@ func TestMapTitles(t *testing.T) {
 	}
 }
 
-func TestGroupBySegmentSignature(t *testing.T) {
+func TestGroupMakeMkvBySignature(t *testing.T) {
 	tests := []struct {
 		name    string
 		titles  []makemkv.Title
@@ -107,7 +107,7 @@ func TestGroupBySegmentSignature(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := groupBySegmentSignature(test.titles)
+			got, err := groupMakeMkvBySignature(test.titles)
 			if (err != nil) != test.wantErr {
 				t.Fatalf("unexpected err = %v", err)
 			}

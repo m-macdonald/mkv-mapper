@@ -28,7 +28,7 @@ func TestResolveDiscRoot(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if slices.Equal(got, test.want) {
+		if !slices.Equal(got, test.want) {
 			t.Fatalf("got %q, want %q", got, test.want)
 		}
 	}
@@ -54,11 +54,17 @@ func TestFindMountedDisc(t *testing.T) {
 			},
 		},
 		{
-			name: "returns error when no mount found",
+			name: "returns error when dir does not exist",
+			setup: func(t *testing.T) string {
+				return "DOESNOTEXIST"
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns empty slice when no mount found",
 			setup: func(t *testing.T) string {
 				return t.TempDir()
 			},
-			wantErr: true,
 		},
 	}
 
@@ -74,7 +80,7 @@ func TestFindMountedDisc(t *testing.T) {
 			if test.want != nil {
 				want = test.want(base)
 			}
-			if slices.Equal(want, got) {
+			if !slices.Equal(want, got) {
 				t.Fatalf("want %q, got %q", want, got)
 			}
 		})

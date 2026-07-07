@@ -1,4 +1,4 @@
-package planner
+package engine
 
 import (
 	"testing"
@@ -8,6 +8,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/mapper"
 	th "m-macdonald/mkv-mapper/internal/mkvmappertest"
+	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/naming"
 )
 
@@ -83,7 +84,7 @@ func TestBuildPlan(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			plan, err := BuildPlan("/disc", "/output", test.config, test.discRecord, test.titles)
+			plan, err := buildPlan("/disc", "/output", test.config, test.discRecord, test.titles)
 			if (err != nil) != test.wantErr {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -141,7 +142,7 @@ func TestResolveFilenames(t *testing.T) {
 		mappings       []mapper.TitleMapping
 		wantTitles     int
 		wantFinalNames []string
-		wantWarnings   []WarningCode
+		wantWarnings   []model.WarningCode
 		wantErr        bool
 	}{
 		{
@@ -158,7 +159,7 @@ func TestResolveFilenames(t *testing.T) {
 			},
 			wantTitles:     1,
 			wantFinalNames: []string{"Test.mkv"},
-			wantWarnings:   []WarningCode{},
+			wantWarnings:   []model.WarningCode{},
 		},
 		{
 			name:   "no metadata warning",
@@ -170,7 +171,7 @@ func TestResolveFilenames(t *testing.T) {
 				},
 			},
 			wantTitles:   1,
-			wantWarnings: []WarningCode{WarningNoMetadata},
+			wantWarnings: []model.WarningCode{model.WarningNoMetadata},
 		},
 		{
 			name:   "fallback warning",
@@ -183,7 +184,7 @@ func TestResolveFilenames(t *testing.T) {
 			},
 			wantTitles:     1,
 			wantFinalNames: []string{"Fallback.mkv"},
-			wantWarnings:   []WarningCode{WarningCode(naming.WarningNamingFallback)},
+			wantWarnings:   []model.WarningCode{model.WarningCode(naming.WarningNamingFallback)},
 		},
 		{
 			name:   "no metadata and fallback",
@@ -198,9 +199,9 @@ func TestResolveFilenames(t *testing.T) {
 			},
 			wantTitles:     1,
 			wantFinalNames: []string{"Fallback.mkv"},
-			wantWarnings: []WarningCode{
-				WarningNoMetadata,
-				WarningCode(naming.WarningNamingFallback),
+			wantWarnings: []model.WarningCode{
+				model.WarningNoMetadata,
+				model.WarningCode(naming.WarningNamingFallback),
 			},
 		},
 		{
@@ -227,8 +228,8 @@ func TestResolveFilenames(t *testing.T) {
 				"Test.mkv",
 				"Test_t1.mkv",
 			},
-			wantWarnings: []WarningCode{
-				WarningCode(naming.WarningFilenameSuffixed),
+			wantWarnings: []model.WarningCode{
+				model.WarningCode(naming.WarningFilenameSuffixed),
 			},
 		},
 		{
@@ -236,7 +237,7 @@ func TestResolveFilenames(t *testing.T) {
 			config:       validConfig,
 			mappings:     []mapper.TitleMapping{},
 			wantTitles:   0,
-			wantWarnings: []WarningCode{},
+			wantWarnings: []model.WarningCode{},
 		},
 		{
 			name: "invalid template fails at construction",
@@ -257,11 +258,13 @@ func TestResolveFilenames(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			plan := &Plan{
-				Titles: make([]TitlePlan, 0),
+			plan := &model.Plan{
+				PlanBase: model.PlanBase{
+					Titles: make([]model.TitlePlan, 0),
+				},
 			}
-			report := &BuildReport{
-				Warnings: make([]PlanWarning, 0),
+			report := &model.BuildReport{
+				Warnings: make([]model.PlanWarning, 0),
 			}
 			err := resolveFilenames(test.config, test.mappings, discRecord, plan)
 			if (err != nil) != test.wantErr {

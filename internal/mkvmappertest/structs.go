@@ -4,7 +4,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 )
 
 func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
@@ -88,8 +88,8 @@ func WithMedia(media discdb.Media) func(*discdb.DiscRecord) {
 }
 
 // TODO: These might benefit from being expanded to support the options pattern like the above
-func TestTitlePlan(id lines.TitleId, name string, size uint64, isMatched bool) planner.TitlePlan {
-	return planner.TitlePlan{
+func TestTitlePlan(id lines.TitleId, name string, size uint64, isMatched bool) model.TitlePlan {
+	return model.TitlePlan{
 		TitleId:           id,
 		SourcePlaylist:    "test.m2ts",
 		MakeMkvOutputFile: "test_output.mkv",
@@ -99,15 +99,15 @@ func TestTitlePlan(id lines.TitleId, name string, size uint64, isMatched bool) p
 	}
 }
 
-func TestPlan(titles ...planner.TitlePlan) planner.Plan {
-	return planner.Plan{
-		PlanBase: planner.PlanBase{
+func TestPlan(titles ...model.TitlePlan) model.Plan {
+	return model.Plan{
+		PlanBase: model.PlanBase{
 			OutputDir: "/test/output",
 			DiscRoot:  "/test/disc",
 			Titles:    titles,
-			MediaInfo: planner.MediaInfo{Title: "Test Disc", Year: 2024},
-			Disc:      planner.Disc{Format: "UHD", Hash: "TESTHASH"},
+			MediaInfo: model.MediaInfo{Title: "Test Disc", Year: 2024},
+			Disc:      model.Disc{Format: "UHD", Hash: "TESTHASH"},
 		},
-		BuildReport: planner.BuildReport{Warnings: make([]planner.PlanWarning, 0)},
+		BuildReport: model.BuildReport{Warnings: make([]model.PlanWarning, 0)},
 	}
 }

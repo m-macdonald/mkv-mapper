@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 
 	"m-macdonald/mkv-mapper/internal/files"
-	"m-macdonald/mkv-mapper/internal/planner"
+	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
 )
 
-func buildValidationReport(plan planner.SelectedPlan) planner.ValidationReport {
-	report := &planner.ValidationReport{}
+func buildValidationReport(plan model.SelectedPlan) model.ValidationReport {
+	report := &model.ValidationReport{}
 
 	validateOutputDir(plan, report)
 	validateDiskSpace(plan, report)
@@ -22,23 +22,23 @@ func buildValidationReport(plan planner.SelectedPlan) planner.ValidationReport {
 	return *report
 }
 
-func validateOutputDir(plan planner.SelectedPlan, report *planner.ValidationReport) {
+func validateOutputDir(plan model.SelectedPlan, report *model.ValidationReport) {
 	info, err := os.Stat(plan.OutputDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Making this an error for now. I might just auto-create the outputdir in the future
-			report.AddResult(planner.ValidationResult{
-				Status:  planner.ValidationStatusFail,
-				Code:    planner.ValidationOutputDirInvalid,
+			report.AddResult(model.ValidationResult{
+				Status:  model.ValidationStatusFail,
+				Code:    model.ValidationOutputDirInvalid,
 				Message: fmt.Sprintf("output directory does not exist: %s", plan.OutputDir),
 				Cause:   err,
 			})
 
 			return
 		}
-		report.AddResult(planner.ValidationResult{
-			Status:  planner.ValidationStatusFail,
-			Code:    planner.ValidationOutputDirInvalid,
+		report.AddResult(model.ValidationResult{
+			Status:  model.ValidationStatusFail,
+			Code:    model.ValidationOutputDirInvalid,
 			Message: fmt.Sprintf("could not stat output directory: %s", plan.OutputDir),
 			Cause:   err,
 		})
@@ -47,27 +47,27 @@ func validateOutputDir(plan planner.SelectedPlan, report *planner.ValidationRepo
 	}
 
 	if !info.IsDir() {
-		report.AddResult(planner.ValidationResult{
-			Status:  planner.ValidationStatusFail,
-			Code:    planner.ValidationOutputDirInvalid,
+		report.AddResult(model.ValidationResult{
+			Status:  model.ValidationStatusFail,
+			Code:    model.ValidationOutputDirInvalid,
 			Message: fmt.Sprintf("output path is not a directory: %s", plan.OutputDir),
 		})
 
 		return
 	}
 
-	report.AddResult(planner.ValidationResult{
-		Status:  planner.ValidationStatusPass,
+	report.AddResult(model.ValidationResult{
+		Status:  model.ValidationStatusPass,
 		Message: fmt.Sprintf("output directory valid: %s", plan.OutputDir),
 	})
 }
 
-func validateDiskSpace(plan planner.SelectedPlan, report *planner.ValidationReport) {
+func validateDiskSpace(plan model.SelectedPlan, report *model.ValidationReport) {
 	free, err := files.GetFreeDiskSpace(plan.OutputDir)
 	if err != nil {
-		report.AddResult(planner.ValidationResult{
-			Status:  planner.ValidationStatusFail,
-			Code:    planner.ValidationOutputDirInvalid,
+		report.AddResult(model.ValidationResult{
+			Status:  model.ValidationStatusFail,
+			Code:    model.ValidationOutputDirInvalid,
 			Message: fmt.Sprintf("could not determine free space for output directory: %s", plan.OutputDir),
 			Cause:   err,
 		})
@@ -81,9 +81,9 @@ func validateDiskSpace(plan planner.SelectedPlan, report *planner.ValidationRepo
 	}
 
 	if free < required {
-		report.AddResult(planner.ValidationResult{
-			Status: planner.ValidationStatusFail,
-			Code:   planner.ValidationInsufficientSpace,
+		report.AddResult(model.ValidationResult{
+			Status: model.ValidationStatusFail,
+			Code:   model.ValidationInsufficientSpace,
 			Message: fmt.Sprintf(
 				"insufficient disk space %s: need %s, have %s",
 				plan.OutputDir,
@@ -94,8 +94,8 @@ func validateDiskSpace(plan planner.SelectedPlan, report *planner.ValidationRepo
 		return
 	}
 
-	report.AddResult(planner.ValidationResult{
-		Status: planner.ValidationStatusPass,
+	report.AddResult(model.ValidationResult{
+		Status: model.ValidationStatusPass,
 		Message: fmt.Sprintf(
 			"sufficient disk space %s: need %s, have %s",
 			plan.OutputDir,
@@ -104,7 +104,7 @@ func validateDiskSpace(plan planner.SelectedPlan, report *planner.ValidationRepo
 	})
 }
 
-func validateExistingFiles(plan planner.SelectedPlan, report *planner.ValidationReport) {
+func validateExistingFiles(plan model.SelectedPlan, report *model.ValidationReport) {
 	hasIssue := false
 	for _, title := range plan.Titles {
 		outPath := filepath.Join(plan.OutputDir, title.FinalName)
@@ -112,9 +112,9 @@ func validateExistingFiles(plan planner.SelectedPlan, report *planner.Validation
 		_, err := os.Stat(outPath)
 		if err == nil {
 			titleId := title.TitleId
-			report.AddResult(planner.ValidationResult{
-				Status:  planner.ValidationStatusFail,
-				Code:    planner.ValidationOutputExists,
+			report.AddResult(model.ValidationResult{
+				Status:  model.ValidationStatusFail,
+				Code:    model.ValidationOutputExists,
 				Message: fmt.Sprintf("output file already exists: %s", outPath),
 				TitleId: &titleId,
 			})
@@ -125,9 +125,9 @@ func validateExistingFiles(plan planner.SelectedPlan, report *planner.Validation
 
 		if !errors.Is(err, fs.ErrNotExist) {
 			titleId := title.TitleId
-			report.AddResult(planner.ValidationResult{
-				Status:  planner.ValidationStatusFail,
-				Code:    planner.ValidationOutputDirInvalid,
+			report.AddResult(model.ValidationResult{
+				Status:  model.ValidationStatusFail,
+				Code:    model.ValidationOutputDirInvalid,
 				Message: fmt.Sprintf("could not stat output file path: %s", outPath),
 				Cause:   err,
 				TitleId: &titleId,
@@ -139,8 +139,8 @@ func validateExistingFiles(plan planner.SelectedPlan, report *planner.Validation
 	}
 
 	if !hasIssue {
-		report.AddResult(planner.ValidationResult{
-			Status:  planner.ValidationStatusPass,
+		report.AddResult(model.ValidationResult{
+			Status:  model.ValidationStatusPass,
 			Message: "No existing file conflicts",
 		})
 	}
