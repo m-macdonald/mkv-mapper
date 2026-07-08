@@ -32,7 +32,6 @@ func buildPlan(
 			},
 			DiscRoot:  discRoot,
 			OutputDir: outputDir,
-			Titles:    make([]model.TitlePlan, 0, len(mappings)),
 		},
 	}
 
