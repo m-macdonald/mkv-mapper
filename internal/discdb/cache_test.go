@@ -40,6 +40,7 @@ func TestSQLiteCache(t *testing.T) {
 			Titles: []Title{
 				{
 					SegmentMap:  "1,2,3",
+					Signature:   "1,2,3",
 					Duration:    "2:00:00",
 					DisplaySize: "25.0 GB",
 					Size:        25000000000,
@@ -50,6 +51,7 @@ func TestSQLiteCache(t *testing.T) {
 				},
 				{
 					SegmentMap: "4,5,6",
+					Signature:  "4,5,6",
 					Size:       1000000,
 					Item:       nil,
 				},

@@ -140,7 +140,7 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 			TitleId:        titleCtx.MakeMkvTitle.TitleId,
 			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
 			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
-			Segments:       string(titleCtx.MakeMkvTitle.Segments),
+			Segments:       string(titleCtx.MakeMkvTitle.Signature),
 			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 

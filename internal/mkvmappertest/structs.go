@@ -5,6 +5,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/model"
+	"m-macdonald/mkv-mapper/internal/signature"
 )
 
 func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
@@ -20,9 +21,9 @@ func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
 	return title
 }
 
-func WithSegments(segmentMap string) func(*makemkv.Title) {
+func WithSignature(signature signature.SegmentSignature) func(*makemkv.Title) {
 	return func(title *makemkv.Title) {
-		title.Segments = segmentMap
+		title.Signature = signature
 	}
 }
 
@@ -49,6 +50,7 @@ func NewDiscTitle(opts ...func(*discdb.Title)) discdb.Title {
 func WithSegmentMap(segmentMap string) func(*discdb.Title) {
 	return func(title *discdb.Title) {
 		title.SegmentMap = segmentMap
+		title.Signature = signature.SegmentSignature(segmentMap)
 	}
 }
 

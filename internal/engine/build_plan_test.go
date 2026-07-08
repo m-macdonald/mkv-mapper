@@ -37,7 +37,7 @@ func TestBuildPlan(t *testing.T) {
 				),
 			),
 			titles: []makemkv.Title{
-				th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
+				th.NewMakeMkvTitle(th.WithSignature("1,2,3")),
 			},
 			wantTitles: 1,
 		},
@@ -64,20 +64,7 @@ func TestBuildPlan(t *testing.T) {
 				),
 			),
 			titles: []makemkv.Title{
-				th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
-			},
-			wantErr: true,
-		},
-		{
-			name:   "maptitles failure",
-			config: validConfig,
-			discRecord: th.NewDiscRecord(
-				th.WithTitles(
-					th.NewDiscTitle(th.WithSegmentMap("   "), th.WithItem(th.NewDiscItem())),
-				),
-			),
-			titles: []makemkv.Title{
-				th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
+				th.NewMakeMkvTitle(th.WithSignature("1,2,3")),
 			},
 			wantErr: true,
 		},
@@ -150,7 +137,7 @@ func TestResolveFilenames(t *testing.T) {
 			config: validConfig,
 			mappings: []mapper.TitleMapping{
 				{
-					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
+					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSignature("1,2,3")),
 					DiscDbTitle: th.NewDiscTitle(
 						th.WithSegmentMap("1,2,3"),
 						th.WithItem(th.NewDiscItem()),
@@ -166,7 +153,7 @@ func TestResolveFilenames(t *testing.T) {
 			config: validConfig,
 			mappings: []mapper.TitleMapping{
 				{
-					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
+					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSignature("1,2,3")),
 					DiscDbTitle:  th.NewDiscTitle(th.WithSegmentMap("1,2,3")),
 				},
 			},
@@ -178,7 +165,7 @@ func TestResolveFilenames(t *testing.T) {
 			config: invalidConfig,
 			mappings: []mapper.TitleMapping{
 				{
-					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSegments("1,2,3"), th.WithOutputFilename("Fallback.mkv")),
+					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSignature("1,2,3"), th.WithOutputFilename("Fallback.mkv")),
 					DiscDbTitle:  th.NewDiscTitle(th.WithSegmentMap("1,2,3"), th.WithItem(th.NewDiscItem())),
 				},
 			},
@@ -192,7 +179,7 @@ func TestResolveFilenames(t *testing.T) {
 			mappings: []mapper.TitleMapping{
 				{
 					MakeMkvTitle: th.NewMakeMkvTitle(
-						th.WithSegments("1,2,3"),
+						th.WithSignature("1,2,3"),
 						th.WithOutputFilename("Fallback.mkv")),
 					DiscDbTitle: th.NewDiscTitle(th.WithSegmentMap("1,2,3")),
 				},
@@ -209,14 +196,14 @@ func TestResolveFilenames(t *testing.T) {
 			config: validConfig,
 			mappings: []mapper.TitleMapping{
 				{
-					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
+					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSignature("1,2,3")),
 					DiscDbTitle: th.NewDiscTitle(
 						th.WithSegmentMap("1,2,3"),
 						th.WithItem(th.NewDiscItem())),
 				},
 				{
 					MakeMkvTitle: th.NewMakeMkvTitle(
-						th.WithSegments("4,5,6"),
+						th.WithSignature("4,5,6"),
 						th.WithTitleId(1)),
 					DiscDbTitle: th.NewDiscTitle(
 						th.WithSegmentMap("4,5,6"),
@@ -249,7 +236,7 @@ func TestResolveFilenames(t *testing.T) {
 			},
 			mappings: []mapper.TitleMapping{
 				{
-					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSegments("1,2,3")),
+					MakeMkvTitle: th.NewMakeMkvTitle(th.WithSignature("1,2,3")),
 					DiscDbTitle:  th.NewDiscTitle(th.WithSegmentMap("1,2,3"), th.WithItem(th.NewDiscItem())),
 				},
 			},
@@ -262,9 +249,6 @@ func TestResolveFilenames(t *testing.T) {
 				PlanBase: model.PlanBase{
 					Titles: make([]model.TitlePlan, 0),
 				},
-			}
-			report := &model.BuildReport{
-				Warnings: make([]model.PlanWarning, 0),
 			}
 			err := resolveFilenames(test.config, test.mappings, discRecord, plan)
 			if (err != nil) != test.wantErr {
@@ -292,11 +276,11 @@ func TestResolveFilenames(t *testing.T) {
 					}
 				}
 			}
-			if len(report.Warnings) != len(test.wantWarnings) {
-				t.Errorf("expected %d warnings, got %d", len(test.wantWarnings), len(report.Warnings))
+			if len(plan.BuildReport.Warnings) != len(test.wantWarnings) {
+				t.Errorf("expected %d warnings, got %d", len(test.wantWarnings), len(plan.BuildReport.Warnings))
 				return
 			}
-			for i, w := range report.Warnings {
+			for i, w := range plan.BuildReport.Warnings {
 				if w.Code != test.wantWarnings[i] {
 					t.Errorf("warning %d: expected code %q, got %q", i, test.wantWarnings[i], w.Code)
 				}

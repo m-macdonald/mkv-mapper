@@ -40,7 +40,7 @@ func TestResolveFilename(t *testing.T) {
 		MakeMkvTitle: makemkv.Title{
 			SourceFilename: "sourceFilename.mpls",
 			OutputFilename: "outputFilename.mkv",
-			Segments:       "",
+			Signature:      "",
 			OutputFileSize: 123456789,
 			TitleId:        1,
 		},

@@ -109,7 +109,7 @@ func TestBuildTemplateVars(t *testing.T) {
 			TitleId:        titleCtx.MakeMkvTitle.TitleId,
 			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
 			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
-			Segments:       titleCtx.MakeMkvTitle.Segments,
+			Segments:       string(titleCtx.MakeMkvTitle.Signature),
 			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 		Season:       titleCtx.DiscDbTitle.Item.Season,
@@ -225,7 +225,7 @@ func titleContext() TitleContext {
 			TitleId:        2,
 			OutputFilename: "MakeMkvOutputFilename",
 			SourceFilename: "MakeMkvSourceFilename",
-			Segments:       "MakeMkvSegmentSignature",
+			Signature:      "MakeMkvSegmentSignature",
 			OutputFileSize: 3,
 		},
 	}

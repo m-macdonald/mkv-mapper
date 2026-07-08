@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/signature"
 
 	"go.uber.org/zap"
 )
@@ -161,7 +162,7 @@ func (c *Client) BackupDisc(
 type Title struct {
 	SourceFilename string
 	OutputFilename string
-	Segments       string
+	Signature      signature.SegmentSignature
 	OutputFileSize uint64
 	TitleId        lines.TitleId
 }
@@ -191,7 +192,11 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 			case lines.TitleInfoCodeOutputFileName:
 				title.OutputFilename = titleInfo.Value
 			case lines.TitleInfoCodeSegmentsMap:
-				title.Segments = titleInfo.Value
+				signature, err := signature.NormalizeSegments(titleInfo.Value)
+				if err != nil {
+					return nil, err
+				}
+				title.Signature = signature
 			case lines.TitleInfoCodeSize:
 				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
 				if err != nil {

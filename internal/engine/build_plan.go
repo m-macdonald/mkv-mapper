@@ -18,10 +18,7 @@ func buildPlan(
 	discRecord discdb.DiscRecord,
 	titles []makemkv.Title,
 ) (model.Plan, error) {
-	mappings, err := mapper.MapTitles(discRecord, titles)
-	if err != nil {
-		return model.Plan{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
-	}
+	mappings := mapper.MapTitles(discRecord, titles)
 
 	plan := model.Plan{
 		PlanBase: model.PlanBase{
@@ -42,7 +39,7 @@ func buildPlan(
 		},
 	}
 
-	err = resolveFilenames(templateConfig, mappings, discRecord, &plan)
+	err := resolveFilenames(templateConfig, mappings, discRecord, &plan)
 	if err != nil {
 		return model.Plan{}, err
 	}
