@@ -34,9 +34,6 @@ func buildPlan(
 			OutputDir: outputDir,
 			Titles:    make([]model.TitlePlan, 0, len(mappings)),
 		},
-		BuildReport: model.BuildReport{
-			Warnings: make([]model.PlanWarning, 0),
-		},
 	}
 
 	err := resolveFilenames(templateConfig, mappings, discRecord, &plan)
