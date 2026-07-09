@@ -14,9 +14,11 @@ const (
 	TitleInfoCodeSegmentsMap    TitleInfoCode = 26
 )
 
+type TitleId int
+
 type TitleInfo struct {
 	parsedLineBase
-	TitleId     int
+	TitleId    	TitleId 
 	AttributeId TitleInfoCode
 	Code        int
 	Value       string
@@ -31,7 +33,7 @@ func (t *TitleInfoParser) Parse(raw string, params []string) (ParsedLine, error)
 	titleInfo.raw = raw
 
 	if titleId, err := strconv.Atoi(params[0]); err == nil {
-		titleInfo.TitleId = titleId
+		titleInfo.TitleId = TitleId(titleId)
 	} else {
 		return nil, fmt.Errorf("unable to parse uint for TitleId %w", err)
 	}

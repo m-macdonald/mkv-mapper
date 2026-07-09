@@ -1,6 +1,11 @@
 package discdb
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+
+	"m-macdonald/mkv-mapper/internal/signature"
+)
 
 type DiscRecord struct {
 	Media   Media   `json:"media"`
@@ -35,7 +40,8 @@ type Title struct {
 	SourceFile  string `json:"sourceFile"`
 	Size        uint64 `json:"size"`
 	SegmentMap  string `json:"segmentMap"`
-	Item        *Item  `json:"item,omitempty"`
+	Signature   signature.SegmentSignature
+	Item        *Item `json:"item,omitempty"`
 }
 
 func (t *Title) ItemValue() (Item, bool) {
@@ -44,6 +50,27 @@ func (t *Title) ItemValue() (Item, bool) {
 	}
 
 	return *t.Item, true
+}
+
+func (t *Title) UnmarshalJSON(data []byte) error {
+	// Creates an alias type that does not inherit Title's methods
+	// thus preventing infinite recursion on unmarshal
+	type Alias Title
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(t),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	signature, err := signature.NormalizeSegments(t.SegmentMap)
+	if err != nil {
+		return fmt.Errorf("failed to normalize segment map %q: %w", t.SegmentMap, err)
+	}
+	t.Signature = signature
+	return nil
 }
 
 type Item struct {

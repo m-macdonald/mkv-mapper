@@ -8,12 +8,14 @@ import (
 )
 
 const (
-	makemkvPath      = "makemkv-path"
-	templateOverride = "template-override"
-	outputDir        = "output-dir"
 	discRoot         = "disc-root"
-	hideUnmatched    = "hideUnmatched"
+	makemkvPath      = "makemkv-path"
+	mode             = "mode"
+	outputDir        = "output-dir"
+	templateOverride = "template-override"
 )
+
+var dfltMode = config.DefaultConfig().Disc.Mode
 
 var Cmd = &cobra.Command{
 	Use:   "disc",
@@ -23,7 +25,7 @@ var Cmd = &cobra.Command{
 		viper.BindPFlag(config.TemplateOverride, cmd.Flags().Lookup(templateOverride))
 		viper.BindPFlag(config.OutputDir, cmd.Flags().Lookup(outputDir))
 		viper.BindPFlag(config.DiscRoot, cmd.Flags().Lookup(discRoot))
-
+		viper.BindPFlag(config.DiscMode, cmd.Flags().Lookup(mode))
 		return nil
 	},
 }
@@ -31,7 +33,7 @@ var Cmd = &cobra.Command{
 func init() {
 	Cmd.PersistentFlags().String(discRoot, "", "Path to disc root")
 	Cmd.PersistentFlags().String(outputDir, "", "Output directory")
-	Cmd.PersistentFlags().Bool(hideUnmatched, false, "Hide titles with no DiscDB metadata")
 	Cmd.PersistentFlags().String(makemkvPath, "makemkvcon", "The location of the makemkvcon binary. Defaults to assuming the binary is already available on the path")
 	Cmd.PersistentFlags().String(templateOverride, "", "Provide a file naming template for this rip. This template will be used in place of any config-defined templates")
+	Cmd.PersistentFlags().Var(&dfltMode, mode, "Mode to execute in")
 }

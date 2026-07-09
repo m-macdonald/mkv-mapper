@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 )
 
 const maxUniqueFilenameAttempts = 1000
@@ -44,8 +46,10 @@ func ResolveFilename(
 		})
 	}
 
+	sanitizedName := sanitizeSegment(baseName)
+
 	finalName, collisionResolved, err := ensureUniqueFilename(
-		baseName,
+		sanitizedName,
 		ext,
 		titleContext.MakeMkvTitle.TitleId,
 		used)
@@ -68,7 +72,7 @@ func ResolveFilename(
 func ensureUniqueFilename(
 	baseName string,
 	ext string,
-	titleId int,
+	titleId lines.TitleId,
 	used map[string]struct{},
 ) (string, bool, error) {
 	filename := baseName + ext

@@ -9,6 +9,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 )
 
 type filenameGenerator interface {
@@ -106,7 +107,7 @@ type TemplateTitle struct {
 }
 
 type TemplateMakeMkvTitle struct {
-	TitleId        int
+	TitleId        lines.TitleId
 	OutputFilename string
 	SourceFilename string
 	Segments       string
@@ -139,7 +140,7 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 			TitleId:        titleCtx.MakeMkvTitle.TitleId,
 			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
 			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
-			Segments:       string(titleCtx.MakeMkvTitle.Segments),
+			Segments:       string(titleCtx.MakeMkvTitle.Signature),
 			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 

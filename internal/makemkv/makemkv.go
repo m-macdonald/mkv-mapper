@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/signature"
 
 	"go.uber.org/zap"
 )
@@ -107,12 +108,63 @@ func (c *Client) RipDisc(
 	return nil
 }
 
+func (c *Client) RipTitle(
+	ctx context.Context,
+	discRoot string,
+	outputDir string,
+	titleId lines.TitleId,
+	onLine LineSink,
+) error {
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultChan := c.runCmd(cancelCtx, "mkv", discRoot, fmt.Sprint(titleId), outputDir)
+
+	for result := range resultChan {
+		if result.Error != nil {
+			cancel()
+
+			return result.Error
+		}
+
+		if result.Line != nil {
+			onLine(result.Line)
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) BackupDisc(
+	ctx context.Context,
+	discRoot string,
+	outputDir string,
+	onLine LineSink,
+) error {
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultChan := c.runCmd(cancelCtx, "backup", "--decrypt", discRoot, outputDir)
+
+	for result := range resultChan {
+		if result.Error != nil {
+			cancel()
+
+			return result.Error
+		}
+
+		if result.Line != nil {
+			onLine(result.Line)
+		}
+	}
+
+	return nil
+}
+
 type Title struct {
 	SourceFilename string
 	OutputFilename string
-	Segments       string
+	Signature      signature.SegmentSignature
 	OutputFileSize uint64
-	TitleId        int
+	TitleId        lines.TitleId
 }
 
 func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, error) {
@@ -120,7 +172,7 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 	defer cancel()
 	resultChan := c.runCmd(cancelCtx, "info", discRoot)
 
-	titleMap := map[int]*Title{}
+	titleMap := map[lines.TitleId]*Title{}
 	for result := range resultChan {
 		if result.Error != nil {
 			return nil, result.Error
@@ -140,7 +192,11 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 			case lines.TitleInfoCodeOutputFileName:
 				title.OutputFilename = titleInfo.Value
 			case lines.TitleInfoCodeSegmentsMap:
-				title.Segments = titleInfo.Value
+				signature, err := signature.NormalizeSegments(titleInfo.Value)
+				if err != nil {
+					return nil, err
+				}
+				title.Signature = signature
 			case lines.TitleInfoCodeSize:
 				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
 				if err != nil {

@@ -1,8 +1,6 @@
 package mapper
 
 import (
-	"fmt"
-
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/signature"
@@ -16,38 +14,41 @@ type TitleMapping struct {
 func MapTitles(
 	discRecord discdb.DiscRecord,
 	makemkvTitles []makemkv.Title,
-) ([]TitleMapping, error) {
-	grouped, err := groupBySegmentSignature(makemkvTitles)
-	if err != nil {
-		return nil, err
-	}
+) []TitleMapping {
+	groupedDiscDb := groupDiscDbBySignature(discRecord.Disc.Titles)
+	groupedMakeMkv := groupMakeMkvBySignature(makemkvTitles)
 
-	var mappings []TitleMapping
-	for _, discDbTitle := range discRecord.Disc.Titles {
-		segmentSignature, err := signature.NormalizeSegments(discDbTitle.SegmentMap)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create segment signature for discdb segment map %s: %w", discDbTitle.SegmentMap, err)
-		}
-		if makeMkvTitle, ok := grouped[segmentSignature]; ok {
-			mappings = append(mappings, TitleMapping{
-				MakeMkvTitle: makeMkvTitle,
-				DiscDbTitle:  discDbTitle,
-			})
-		}
+	mappings := make([]TitleMapping, 0, len(makemkvTitles))
+	for _, makeMkvTitle := range groupedMakeMkv {
+		mappings = append(mappings, TitleMapping{
+			MakeMkvTitle: makeMkvTitle,
+			// Worth keeping in mind that this will result in a zero-valued DiscDbTitle if there is no match.
+			DiscDbTitle: groupedDiscDb[makeMkvTitle.Signature],
+		})
 	}
-
-	return mappings, nil
+	return mappings
 }
 
-func groupBySegmentSignature(titles []makemkv.Title) (map[signature.SegmentSignature]makemkv.Title, error) {
-	grouped := make(map[signature.SegmentSignature]makemkv.Title, len(titles))
+func groupMakeMkvBySignature(titles []makemkv.Title) []makemkv.Title {
+	seen := make(map[signature.SegmentSignature]bool, len(titles))
+	deduped := make([]makemkv.Title, 0, len(titles))
 	for _, title := range titles {
-		sig, err := signature.NormalizeSegments(title.Segments)
-		if err != nil {
-			return nil, err
+		if seen[title.Signature] {
+			continue // duplicate content, already represented by an earlier title
 		}
-		grouped[sig] = title
+		seen[title.Signature] = true
+		deduped = append(deduped, title)
 	}
+	return deduped
+}
 
-	return grouped, nil
+func groupDiscDbBySignature(titles []discdb.Title) map[signature.SegmentSignature]discdb.Title {
+	grouped := make(map[signature.SegmentSignature]discdb.Title, len(titles))
+	for _, title := range titles {
+		if existing, ok := grouped[title.Signature]; ok && existing.Item != nil {
+			continue
+		}
+		grouped[title.Signature] = title
+	}
+	return grouped
 }

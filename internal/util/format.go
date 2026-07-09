@@ -1,8 +1,8 @@
-package format
+package util
 
 import "fmt"
 
-func Size(bytes uint64) string {
+func FormatSize(bytes uint64) string {
 	const (
 		gb = 1024 * 1024 * 1024
 		mb = 1024 * 1024

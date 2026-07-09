@@ -3,6 +3,9 @@ package mkvmappertest
 import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/makemkv/lines"
+	"m-macdonald/mkv-mapper/internal/model"
+	"m-macdonald/mkv-mapper/internal/signature"
 )
 
 func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
@@ -18,9 +21,9 @@ func NewMakeMkvTitle(opts ...func(*makemkv.Title)) makemkv.Title {
 	return title
 }
 
-func WithSegments(segmentMap string) func(*makemkv.Title) {
+func WithSignature(signature signature.SegmentSignature) func(*makemkv.Title) {
 	return func(title *makemkv.Title) {
-		title.Segments = segmentMap
+		title.Signature = signature
 	}
 }
 
@@ -30,7 +33,7 @@ func WithOutputFilename(outputFilename string) func(*makemkv.Title) {
 	}
 }
 
-func WithTitleId(titleId int) func(*makemkv.Title) {
+func WithTitleId(titleId lines.TitleId) func(*makemkv.Title) {
 	return func(title *makemkv.Title) {
 		title.TitleId = titleId
 	}
@@ -47,6 +50,7 @@ func NewDiscTitle(opts ...func(*discdb.Title)) discdb.Title {
 func WithSegmentMap(segmentMap string) func(*discdb.Title) {
 	return func(title *discdb.Title) {
 		title.SegmentMap = segmentMap
+		title.Signature = signature.SegmentSignature(segmentMap)
 	}
 }
 
@@ -82,5 +86,30 @@ func WithTitles(titles ...discdb.Title) func(*discdb.DiscRecord) {
 func WithMedia(media discdb.Media) func(*discdb.DiscRecord) {
 	return func(record *discdb.DiscRecord) {
 		record.Media = media
+	}
+}
+
+// TODO: These might benefit from being expanded to support the options pattern like the above
+func TestTitlePlan(id lines.TitleId, name string, size uint64, isMatched bool) model.TitlePlan {
+	return model.TitlePlan{
+		TitleId:           id,
+		SourcePlaylist:    "test.m2ts",
+		MakeMkvOutputFile: "test_output.mkv",
+		FinalName:         name,
+		EstimatedSize:     size,
+		IsMatched:         isMatched,
+	}
+}
+
+func TestPlan(titles ...model.TitlePlan) model.Plan {
+	return model.Plan{
+		PlanBase: model.PlanBase{
+			OutputDir: "/test/output",
+			DiscRoot:  "/test/disc",
+			Titles:    titles,
+			MediaInfo: model.MediaInfo{Title: "Test Disc", Year: 2024},
+			Disc:      model.Disc{Format: "UHD", Hash: "TESTHASH"},
+		},
+		BuildReport: model.BuildReport{Warnings: make([]model.PlanWarning, 0)},
 	}
 }

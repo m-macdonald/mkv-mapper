@@ -1,4 +1,4 @@
-package planner
+package engine
 
 import (
 	"fmt"
@@ -7,73 +7,47 @@ import (
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/mapper"
+	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/naming"
-	"m-macdonald/mkv-mapper/internal/signature"
 )
 
-type Plan struct {
-	DiscPlan    DiscPlan
-	BuildReport BuildReport
-}
-
-type DiscPlan struct {
-	MediaTitle string
-	MediaYear  int
-	DiscFormat string
-	DiscHash   string
-	DiscRoot   string
-	OutputDir  string
-	Titles     []TitlePlan
-}
-
-type TitlePlan struct {
-	TitleId           int
-	SourcePlaylist    string
-	SegmentSignature  signature.SegmentSignature
-	MakeMkvOutputFile string
-	FinalName         string
-	EstimatedSize     uint64
-}
-
-func BuildPlan(
+func buildPlan(
 	discRoot string,
 	outputDir string,
 	templateConfig config.TemplateConfig,
 	discRecord discdb.DiscRecord,
 	titles []makemkv.Title,
-) (Plan, error) {
-	mappings, err := mapper.MapTitles(discRecord, titles)
+) (model.Plan, error) {
+	mappings := mapper.MapTitles(discRecord, titles)
+
+	plan := model.Plan{
+		PlanBase: model.PlanBase{
+			MediaInfo: model.MediaInfo{
+				Title: discRecord.Media.Title,
+				Year:  discRecord.Media.Year,
+			},
+			Disc: model.Disc{
+				Format: discRecord.Disc.Format,
+				Hash:   discRecord.Disc.ContentHash,
+			},
+			DiscRoot:  discRoot,
+			OutputDir: outputDir,
+		},
+	}
+
+	err := resolveFilenames(templateConfig, mappings, discRecord, &plan)
 	if err != nil {
-		return Plan{}, fmt.Errorf("failed to map MakeMkv titles to DiscDB titles %w", err)
+		return model.Plan{}, err
 	}
 
-	plan := DiscPlan{
-		MediaTitle: discRecord.Media.Title,
-		MediaYear:  discRecord.Media.Year,
-		DiscHash:   discRecord.Disc.ContentHash,
-		DiscFormat: discRecord.Disc.Format,
-		DiscRoot:   discRoot,
-		OutputDir:  outputDir,
-		Titles:     make([]TitlePlan, 0, len(mappings)),
-	}
-	report := BuildReport{
-		Warnings: make([]PlanWarning, 0),
-	}
-
-	err = resolveFilenames(templateConfig, mappings, discRecord, &plan, &report)
-	if err != nil {
-		return Plan{}, err
-	}
-
-	return Plan{DiscPlan: plan, BuildReport: report}, nil
+	return plan, nil
 }
 
 func resolveFilenames(
 	templateConfig config.TemplateConfig,
 	mappings []mapper.TitleMapping,
 	discRecord discdb.DiscRecord,
-	plan *DiscPlan,
-	report *BuildReport,
+	plan *model.Plan,
 ) error {
 	filenameGen, err := naming.NewFilenameGenerator(templateConfig)
 	if err != nil {
@@ -83,9 +57,9 @@ func resolveFilenames(
 	usedNames := make(map[string]struct{}, len(mappings))
 	for _, mapping := range mappings {
 		if mapping.DiscDbTitle.Item == nil {
-			report.Warnings = append(report.Warnings, PlanWarning{
+			plan.BuildReport.Warnings = append(plan.BuildReport.Warnings, model.PlanWarning{
 				TitleId: mapping.MakeMkvTitle.TitleId,
-				Code:    WarningNoMetadata,
+				Code:    model.WarningNoMetadata,
 				Message: "Title has no DiscDB metadata",
 			})
 		}
@@ -105,21 +79,23 @@ func resolveFilenames(
 		}
 
 		for _, event := range filenameResolution.Events {
-			report.Warnings = append(report.Warnings, PlanWarning{
+			plan.BuildReport.Warnings = append(plan.BuildReport.Warnings, model.PlanWarning{
 				TitleId: mapping.MakeMkvTitle.TitleId,
 				// TODO: Translate this better
-				Code:    WarningCode(event.Code),
+				Code:    model.WarningCode(event.Code),
 				Message: event.Message,
 				Cause:   event.Cause,
 			})
 		}
 
-		plan.Titles = append(plan.Titles, TitlePlan{
+		plan.Titles = append(plan.Titles, model.TitlePlan{
 			TitleId:           mapping.MakeMkvTitle.TitleId,
 			SourcePlaylist:    mapping.MakeMkvTitle.SourceFilename,
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,
 			FinalName:         filenameResolution.FinalName,
 			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
+			Duration:          mapping.DiscDbTitle.Duration,
+			IsMatched:         mapping.DiscDbTitle.Item != nil,
 		})
 	}
 
