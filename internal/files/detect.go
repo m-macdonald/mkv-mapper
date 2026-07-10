@@ -8,23 +8,23 @@ import (
 	"strings"
 )
 
-func ResolveDiscRoot(cliRoot string) ([]string, error) {
+func ResolveDiscRoot(cliRoot string) (string, error) {
 	if cliRoot != "" {
-		return []string{cliRoot}, nil
+		return cliRoot, nil
 	}
 	u, err := user.Current()
 	if err != nil {
-		return []string{}, err
+		return "", err
 	}
 	base := filepath.Join("/run/media", u.Username)
 
 	return findMountedDisc(base)
 }
 
-func findMountedDisc(base string) ([]string, error) {
+func findMountedDisc(base string) (string, error) {
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	var discMounts []string
@@ -43,11 +43,11 @@ func findMountedDisc(base string) ([]string, error) {
 
 	switch len(discMounts) {
 	case 0:
-		return nil, fmt.Errorf("failure resolving disc root: %w", err)
+		return "", fmt.Errorf("failure resolving disc root: %w", err)
 	case 1:
-		return nil, fmt.Errorf("no disc found")
+		return discMounts[0], nil
 	default:
-		return nil, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
+		return "", fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
 	}
 }
 

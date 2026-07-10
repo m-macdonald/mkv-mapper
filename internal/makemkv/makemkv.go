@@ -159,6 +159,12 @@ func (c *Client) BackupDisc(
 	return nil
 }
 
+type DiscInfo struct {
+	Label  string
+	Titles []Title
+}
+
+// TODO: Bring this struct's name in line with DiscInfo
 type Title struct {
 	SourceFilename string
 	OutputFilename string
@@ -167,52 +173,67 @@ type Title struct {
 	TitleId        lines.TitleId
 }
 
-func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, error) {
+func (c *Client) ReadDisc(ctx context.Context, discRoot string) (DiscInfo, error) {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	resultChan := c.runCmd(cancelCtx, "info", discRoot)
 
+	disc := DiscInfo{}
 	titleMap := map[lines.TitleId]*Title{}
 	for result := range resultChan {
 		if result.Error != nil {
-			return nil, result.Error
-		} else if result.Line != nil {
-			titleInfo, ok := result.Line.(lines.TitleInfo)
-			if !ok {
-				continue
-			}
-			if _, exists := titleMap[titleInfo.TitleId]; !exists {
-				titleMap[titleInfo.TitleId] = &Title{TitleId: titleInfo.TitleId}
-			}
+			return DiscInfo{}, result.Error
+		}
+		if result.Line == nil {
+			continue
+		}
 
-			title := titleMap[titleInfo.TitleId]
-			switch titleInfo.AttributeId {
-			case lines.TitleInfoCodeSourceFileName:
-				title.SourceFilename = titleInfo.Value
-			case lines.TitleInfoCodeOutputFileName:
-				title.OutputFilename = titleInfo.Value
-			case lines.TitleInfoCodeSegmentsMap:
-				signature, err := signature.NormalizeSegments(titleInfo.Value)
-				if err != nil {
-					return nil, err
-				}
-				title.Signature = signature
-			case lines.TitleInfoCodeSize:
-				size, err := strconv.ParseUint(titleInfo.Value, 10, 64)
-				if err != nil {
-				} else {
-					title.OutputFileSize = size
-				}
+		switch line := result.Line.(type) {
+		case lines.TitleInfo:
+			if _, exists := titleMap[line.TitleId]; !exists {
+				titleMap[line.TitleId] = &Title{TitleId: line.TitleId}
+			}
+			title := titleMap[line.TitleId]
+			if err := c.composeTitle(title, line); err != nil {
+				return DiscInfo{}, err
+			}
+		case lines.DiscInfo:
+			if line.Id == lines.DiscInfoVolumeName {
+				disc.Label = line.Value
 			}
 		}
 	}
 
-	titles := make([]Title, 0, len(titleMap))
+	disc.Titles = make([]Title, 0, len(titleMap))
 	for _, title := range titleMap {
-		titles = append(titles, *title)
+		disc.Titles = append(disc.Titles, *title)
 	}
 
-	return titles, nil
+	return disc, nil
+}
+
+func (c *Client) composeTitle(title *Title, line lines.TitleInfo) error {
+	switch line.AttributeId {
+	case lines.TitleInfoCodeSourceFileName:
+		title.SourceFilename = line.Value
+	case lines.TitleInfoCodeOutputFileName:
+		title.OutputFilename = line.Value
+	case lines.TitleInfoCodeSegmentsMap:
+		signature, err := signature.NormalizeSegments(line.Value)
+		if err != nil {
+			return err
+		}
+		title.Signature = signature
+	case lines.TitleInfoCodeSize:
+		size, err := strconv.ParseUint(line.Value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parsing title size %q: %w", line.Value, err)
+		} else {
+			title.OutputFileSize = size
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) ScanDrives(ctx context.Context) ([]lines.DriveScan, error) {

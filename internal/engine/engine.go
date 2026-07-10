@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"m-macdonald/mkv-mapper/internal/config"
@@ -24,6 +25,13 @@ type Engine struct {
 	logger   *zap.SugaredLogger
 }
 
+type BuildPlanConfig struct {
+	DiscRoot  string
+	OutputDir string
+	Templates config.TemplateConfig
+	Rip       config.RipConfig
+}
+
 type EngineEventSink func(event.Event)
 
 func New(
@@ -42,19 +50,14 @@ func New(
 
 func (e *Engine) BuildPlan(
 	ctx context.Context,
-	discRoot string,
-	outputDir string,
-	templateConfig config.TemplateConfig,
+	cfg BuildPlanConfig,
 ) (model.Plan, error) {
-	discMounts, err := files.ResolveDiscRoot(discRoot)
+	discRoot, err := files.ResolveDiscRoot(cfg.DiscRoot)
 	if err != nil {
 		return model.Plan{}, err
 	}
 
-	// The above switch makes sure that we can safely get the first (and only) element
-	root := discMounts[0]
-
-	hash, err := files.Hash(root)
+	hash, err := files.Hash(discRoot)
 	if err != nil {
 		return model.Plan{}, fmt.Errorf("unable to hash disc %w", err)
 	}
@@ -64,14 +67,13 @@ func (e *Engine) BuildPlan(
 		return model.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
 	}
 
-	titles, err := e.makemkv.ReadTitles(ctx, root)
+	discInfo, err := e.makemkv.ReadDisc(ctx, discRoot)
 	if err != nil {
 		return model.Plan{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
 	}
-
-	return buildPlan(root, outputDir, templateConfig, disc, titles)
+	
+	return buildPlan(discRoot, cfg, disc, discInfo)
 }
-
 
 func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.SelectedPlan, error) {
 	var selection model.Selection
@@ -112,6 +114,23 @@ func (e *Engine) RunPlan(
 		return fmt.Errorf("plan has validation errors, aborting rip")
 	}
 
+	if plan.Backup {
+		backupSource, err := e.resolveBackupSource(ctx, plan.Disc.Label)
+		if err != nil {
+			return err
+		}
+		e.logger.Info("Beginning disc backup...")
+		e.makemkv.BackupDisc(
+			ctx,
+			backupSource,
+			plan.BackupDir,
+			func(pl lines.ParsedLine) {
+				if event, ok := parsedLineToEvent(pl); ok {
+					onEvent(event)
+				}
+			})
+	}
+
 	if plan.IsAllTitles {
 		if err := e.ripAll(ctx, plan, onEvent); err != nil {
 			return err
@@ -131,7 +150,42 @@ func (e *Engine) RunPlan(
 		e.logger.Errorf("%v", errs)
 	}
 
+	// TODO: Move this direct os use elsewhere. files package?
+	if plan.Backup && !plan.KeepBackup {
+		err := os.Remove(plan.BackupDir)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (e *Engine) resolveBackupSource(ctx context.Context, knownLabel string) (string, error) {
+	drives, err := e.makemkv.ScanDrives(ctx)
+	if err != nil {
+		return "", fmt.Errorf("scanning drives: %w", err)
+	}
+
+	var matches []lines.DriveScan
+	for _, d := range drives {
+		if d.DiscName == knownLabel {
+			matches = append(matches, d)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no drive found with disc label %q — was the disc ejected or replaced?", knownLabel)
+	case 1:
+		return fmt.Sprintf("disc:%d", matches[0].Index), nil
+	default:
+		var devices []string
+		for _, d := range matches {
+			devices = append(devices, d.Device)
+		}
+		return "", fmt.Errorf("multiple drives have a disc labeled %q (%s) — remove the duplicate before backing up", knownLabel, strings.Join(devices, ", "))
+	}
 }
 
 func (e *Engine) ripAll(ctx context.Context, plan model.ValidatedPlan, onEvent EngineEventSink) error {

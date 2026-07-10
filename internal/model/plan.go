@@ -1,4 +1,4 @@
-package model 
+package model
 
 import (
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
@@ -11,9 +11,14 @@ type PlanBase struct {
 	MediaInfo MediaInfo
 	OutputDir string
 	Titles    []TitlePlan
+
+	Backup     bool
+	BackupDir  string
+	KeepBackup bool
 }
 
 type Disc struct {
+	Label  string
 	Format string
 	Hash   string
 }

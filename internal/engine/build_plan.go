@@ -13,12 +13,11 @@ import (
 
 func buildPlan(
 	discRoot string,
-	outputDir string,
-	templateConfig config.TemplateConfig,
+	cfg BuildPlanConfig,
 	discRecord discdb.DiscRecord,
-	titles []makemkv.Title,
+	discInfo makemkv.DiscInfo,
 ) (model.Plan, error) {
-	mappings := mapper.MapTitles(discRecord, titles)
+	mappings := mapper.MapTitles(discRecord, discInfo.Titles)
 
 	plan := model.Plan{
 		PlanBase: model.PlanBase{
@@ -27,15 +26,19 @@ func buildPlan(
 				Year:  discRecord.Media.Year,
 			},
 			Disc: model.Disc{
+				Label:  discInfo.Label,
 				Format: discRecord.Disc.Format,
 				Hash:   discRecord.Disc.ContentHash,
 			},
-			DiscRoot:  discRoot,
-			OutputDir: outputDir,
+			DiscRoot:   discRoot,
+			OutputDir:  cfg.OutputDir,
+			Backup:     cfg.Rip.Backup,
+			BackupDir:  cfg.Rip.BackupDir,
+			KeepBackup: cfg.Rip.KeepBackup,
 		},
 	}
 
-	err := resolveFilenames(templateConfig, mappings, discRecord, &plan)
+	err := resolveFilenames(cfg.Templates, mappings, discRecord, &plan)
 	if err != nil {
 		return model.Plan{}, err
 	}
