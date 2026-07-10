@@ -47,13 +47,8 @@ func (e *Engine) BuildPlan(
 	templateConfig config.TemplateConfig,
 ) (model.Plan, error) {
 	discMounts, err := files.ResolveDiscRoot(discRoot)
-	switch {
-	case err != nil:
-		return model.Plan{}, fmt.Errorf("failure resolving disc root: %w", err)
-	case len(discMounts) < 1:
-		return model.Plan{}, fmt.Errorf("no disc found")
-	case len(discMounts) > 1:
-		return model.Plan{}, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
+	if err != nil {
+		return model.Plan{}, err
 	}
 
 	// The above switch makes sure that we can safely get the first (and only) element
@@ -76,6 +71,7 @@ func (e *Engine) BuildPlan(
 
 	return buildPlan(root, outputDir, templateConfig, disc, titles)
 }
+
 
 func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.SelectedPlan, error) {
 	var selection model.Selection

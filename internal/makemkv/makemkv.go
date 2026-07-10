@@ -214,3 +214,23 @@ func (c *Client) ReadTitles(ctx context.Context, discRoot string) ([]Title, erro
 
 	return titles, nil
 }
+
+func (c *Client) ScanDrives(ctx context.Context) ([]lines.DriveScan, error) {
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultChan := c.runCmd(cancelCtx, "info", "disc:9999")
+
+	var drives []lines.DriveScan
+	for result := range resultChan {
+		if result.Error != nil {
+			return nil, result.Error
+		} else if result.Line != nil {
+			driveScan, ok := result.Line.(lines.DriveScan)
+			if !ok {
+				continue
+			}
+			drives = append(drives, driveScan)
+		}
+	}
+	return drives, nil
+}

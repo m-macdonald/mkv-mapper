@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -39,10 +40,16 @@ func findMountedDisc(base string) ([]string, error) {
 			discMounts = append(discMounts, candidate)
 		}
 	}
-	
-	return discMounts, nil
-}
 
+	switch len(discMounts) {
+	case 0:
+		return nil, fmt.Errorf("failure resolving disc root: %w", err)
+	case 1:
+		return nil, fmt.Errorf("no disc found")
+	default:
+		return nil, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
+	}
+}
 
 func isDir(path string) bool {
 	stat, err := os.Stat(path)
