@@ -35,7 +35,7 @@ func (m *MessageParser) Parse(raw string, params []string) (ParsedLine, error) {
 	}
 	message.Message = params[3]
 	message.ParameterizedMessage = params[4]
-	copy(message.Params, params[5:])
+	message.Params = params[5:]
 
 	return message, nil
 }
