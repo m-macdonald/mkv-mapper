@@ -11,19 +11,19 @@ import (
 )
 
 const (
-	CachePath         = "cachePath"
-	ConfigFilename    = "config"
-	DiscRipBackup     = "disc.rip.backup"
-	DiscRipBackupDir  = "disc.rip.backupDir"
-	DiscRipKeepBackup = "disc.rip.keepBackup"
-	DiscMode          = "disc.mode"
-	DiscRoot          = "discRoot"
-	EnvPrefix         = "MKVMAP"
-	LogLevel          = "logLevel"
-	MakeMkvPath       = "makemkvPath"
-	OutputDir         = "outputDir"
-	ProgramDirname    = "mkv-mapper"
-	TemplateOverride  = "templates.override"
+	CachePath           = "cachePath"
+	ConfigFilename      = "config"
+	DiscBackupOutputDir = "disc.backup.outputDir"
+	DiscRipBackup       = "disc.rip.backup"
+	DiscRipBackupKeep   = "disc.rip.keepBackup"
+	DiscMode            = "disc.mode"
+	DiscRoot            = "discRoot"
+	EnvPrefix           = "MKVMAP"
+	LogLevel            = "logLevel"
+	MakeMkvPath         = "makemkvPath"
+	OutputDir           = "outputDir"
+	ProgramDirname      = "mkv-mapper"
+	TemplateOverride    = "templates.override"
 )
 
 type Config struct {
@@ -37,14 +37,18 @@ type Config struct {
 }
 
 type DiscConfig struct {
-	Mode SelectionMode `mapstructure:"mode"`
-	Rip  RipConfig     `mapstructure:"rip"`
+	Mode   SelectionMode `mapstructure:"mode"`
+	Backup BackupConfig  `mapstructure:"backup"`
+	Rip    RipConfig     `mapstructure:"rip"`
 }
 
 type RipConfig struct {
-	Backup     bool   `mapstructure:"backup"`
-	BackupDir  string `mapstructure:"backupDir"`
-	KeepBackup bool   `mapstructure:"keepBackup"`
+	Backup     bool `mapstructure:"backup"`
+	KeepBackup bool `mapstructure:"keepBackup"`
+}
+
+type BackupConfig struct {
+	OutputDir string `mapstructure:"outputDir"`
 }
 
 type TemplateConfig struct {
@@ -126,6 +130,7 @@ func mergeDisc(base DiscConfig, user DiscConfig) DiscConfig {
 	if user.Mode != "" {
 		result.Mode = user.Mode
 	}
+	result.Backup = mergeBackup(base.Backup, user.Backup)
 	result.Rip = mergeRip(base.Rip, user.Rip)
 
 	return result
@@ -135,10 +140,17 @@ func mergeRip(base RipConfig, user RipConfig) RipConfig {
 	result := base
 
 	result.Backup = user.Backup
-	if user.BackupDir != "" {
-		result.BackupDir = user.BackupDir
-	}
 	result.KeepBackup = user.KeepBackup
+
+	return result
+}
+
+func mergeBackup(base BackupConfig, user BackupConfig) BackupConfig {
+	result := base
+
+	if user.OutputDir != "" {
+		result.OutputDir = user.OutputDir
+	}
 
 	return result
 }
@@ -200,10 +212,7 @@ func finalizeConfig(config Config) (Config, error) {
 		return Config{}, err
 	}
 
-	if result.Disc.Rip.Backup && result.Disc.Rip.BackupDir == "" {
-		result.Disc.Rip.BackupDir = result.OutputDir
-	}
-	result.Disc.Rip.BackupDir, err = resolveAbsPath(result.Disc.Rip.BackupDir)
+	result.Disc.Backup.OutputDir, err = resolveAbsPath(result.Disc.Backup.OutputDir)
 	if err != nil {
 		return Config{}, err
 	}

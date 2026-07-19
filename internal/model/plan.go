@@ -17,6 +17,14 @@ type PlanBase struct {
 	KeepBackup bool
 }
 
+func (p PlanBase) SumTitleSizes() uint64 {
+	var total uint64
+	for _, title := range p.Titles {
+		total += title.EstimatedSize
+	}
+	return total
+}
+
 type Disc struct {
 	Label  string
 	Format string

@@ -1,7 +1,7 @@
-package engine
+package validation
 
 import (
-	"m-macdonald/mkv-mapper/internal/model"
+	"context"
 	"math"
 	"os"
 	"path/filepath"
@@ -12,23 +12,23 @@ func TestValidateOutputDir(t *testing.T) {
 	tests := []struct {
 		name       string
 		setup      func(t *testing.T) string
-		wantStatus model.ValidationStatus
-		wantCode   model.ValidationCode
+		wantStatus Status
+		wantCode   Code
 	}{
 		{
 			name: "valid output directory",
 			setup: func(t *testing.T) string {
 				return t.TempDir()
 			},
-			wantStatus: model.ValidationStatusPass,
+			wantStatus: StatusPass,
 		},
 		{
 			name: "directory does not exist",
 			setup: func(t *testing.T) string {
 				return filepath.Join(t.TempDir(), "nonexistent")
 			},
-			wantStatus: model.ValidationStatusFail,
-			wantCode:   model.ValidationOutputDirInvalid,
+			wantStatus: StatusFail,
+			wantCode:   OutputDirInvalid,
 		},
 		{
 			name: "output path is a file not a directory",
@@ -40,26 +40,21 @@ func TestValidateOutputDir(t *testing.T) {
 				}
 				return path
 			},
-			wantStatus: model.ValidationStatusFail,
-			wantCode:   model.ValidationOutputDirInvalid,
+			wantStatus: StatusFail,
+			wantCode:   OutputDirInvalid,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			outputDir := test.setup(t)
-			plan := model.SelectedPlan{
-				PlanBase: model.PlanBase{
-					OutputDir: outputDir,
-				},
-			}
-			report := &model.ValidationReport{}
-			validateOutputDir(plan, report)
+			checkFunc := OutputDirValid(outputDir)
+			got := checkFunc(context.Background())
 
-			if len(report.Results) == 0 {
+			if len(got) == 0 {
 				t.Fatal("expected at least one result")
 			}
-			result := report.Results[0]
+			result := got[0]
 			if result.Status != test.wantStatus {
 				t.Errorf("expected status %q, got %q", test.wantStatus, result.Status)
 			}
@@ -73,46 +68,37 @@ func TestValidateOutputDir(t *testing.T) {
 func TestValidateDiskSpace(t *testing.T) {
 	tests := []struct {
 		name       string
-		setup      func(t *testing.T) string
-		titles     []model.TitlePlan
-		wantStatus model.ValidationStatus
-		wantCode   model.ValidationCode
+		setup      func(t *testing.T) (string, uint64)
+		wantStatus Status
+		wantCode   Code
 	}{
 		{
 			name: "sufficient disk space",
-			setup: func(t *testing.T) string {
-				return t.TempDir()
+			setup: func(t *testing.T) (string, uint64) {
+				return t.TempDir(), 1024
 			},
-			titles:     []model.TitlePlan{{EstimatedSize: 1000}},
-			wantStatus: model.ValidationStatusPass,
+			wantStatus: StatusPass,
 		},
 		{
 			name: "insufficient disk space",
-			setup: func(t *testing.T) string {
-				return t.TempDir()
+			setup: func(t *testing.T) (string, uint64) {
+				return t.TempDir(), math.MaxUint64
 			},
-			titles:     []model.TitlePlan{{EstimatedSize: math.MaxUint64}},
-			wantStatus: model.ValidationStatusFail,
-			wantCode:   model.ValidationInsufficientSpace,
+			wantStatus: StatusFail,
+			wantCode:   InsufficientSpace,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			outputDir := test.setup(t)
-			plan := model.SelectedPlan{
-				PlanBase: model.PlanBase{
-					OutputDir: outputDir,
-					Titles:    test.titles,
-				},
-			}
-			report := &model.ValidationReport{}
-			validateDiskSpace(plan, report)
+			outputDir, needed := test.setup(t)
+			checkFunc := FreeSpace(outputDir, needed)
+			got := checkFunc(context.Background())
 
-			if len(report.Results) == 0 {
+			if len(got) == 0 {
 				t.Fatal("expected at least one result")
 			}
-			result := report.Results[0]
+			result := got[0]
 			if result.Status != test.wantStatus {
 				t.Errorf("expected status %q, got %q", test.wantStatus, result.Status)
 			}
@@ -126,53 +112,48 @@ func TestValidateDiskSpace(t *testing.T) {
 func TestValidateExistingFiles(t *testing.T) {
 	tests := []struct {
 		name       string
-		setup      func(t *testing.T) (string, []model.TitlePlan)
-		wantStatus model.ValidationStatus
-		wantCode   model.ValidationCode
+		setup      func(t *testing.T) (string, []FilenameTarget)
+		wantStatus Status
+		wantCode   Code
 	}{
 		{
 			name: "no existing files",
-			setup: func(t *testing.T) (string, []model.TitlePlan) {
+			setup: func(t *testing.T) (string, []FilenameTarget) {
 				dir := t.TempDir()
-				return dir, []model.TitlePlan{
-					{FinalName: "movie.mkv", TitleId: 1},
+				return dir, []FilenameTarget{
+					{ID: "1", FileName: "movie.mkv"},
 				}
 			},
-			wantStatus: model.ValidationStatusPass,
+			wantStatus: StatusPass,
 		},
 		{
 			name: "existing file conflict",
-			setup: func(t *testing.T) (string, []model.TitlePlan) {
+			setup: func(t *testing.T) (string, []FilenameTarget) {
 				dir := t.TempDir()
 				path := filepath.Join(dir, "movie.mkv")
 				if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
 					t.Fatal(err)
 				}
-				return dir, []model.TitlePlan{
-					{FinalName: "movie.mkv", TitleId: 1},
+				return dir, []FilenameTarget{
+					{ID: "1", FileName: "movie.mkv"},
 				}
 			},
-			wantStatus: model.ValidationStatusFail,
-			wantCode:   model.ValidationOutputExists,
+			wantStatus: StatusFail,
+			wantCode:   OutputExists,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			outputDir, titles := test.setup(t)
-			plan := model.SelectedPlan{
-				PlanBase: model.PlanBase{
-					OutputDir: outputDir,
-					Titles:    titles,
-				},
-			}
-			report := &model.ValidationReport{}
-			validateExistingFiles(plan, report)
+			outputDir, fileNames := test.setup(t)
 
-			if len(report.Results) == 0 {
+			checkFunc := NoConflicts(outputDir, fileNames)
+			got := checkFunc(context.Background())
+
+			if len(got) == 0 {
 				t.Fatal("expected at least one result")
 			}
-			result := report.Results[0]
+			result := got[0]
 			if result.Status != test.wantStatus {
 				t.Errorf("expected status %q, got %q", test.wantStatus, result.Status)
 			}

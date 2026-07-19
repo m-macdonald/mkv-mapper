@@ -13,10 +13,12 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/event"
+	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/terminal"
+	"m-macdonald/mkv-mapper/internal/util"
+	"m-macdonald/mkv-mapper/internal/validation"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -33,48 +35,19 @@ var ripCmd = &cobra.Command{
 		backupFlag := cmd.Flags().Lookup(backup)
 		if backupFlag != nil && backupFlag.Changed {
 			viper.Set(config.DiscRipBackup, true)
-			if o, ok := backupFlag.Value.(*optionalString); ok && !o.wasEmpty {
-				viper.Set(config.DiscRipBackupDir, backupFlag.Value.String())
+			if o, ok := backupFlag.Value.(*util.OptionalString); ok && !o.WasEmpty {
+				viper.Set(config.DiscBackupOutputDir, backupFlag.Value.String())
 			}
 		}
-		viper.BindPFlag(config.DiscRipKeepBackup, cmd.Flags().Lookup(keepBackup))
+		viper.BindPFlag(config.DiscRipBackupKeep, cmd.Flags().Lookup(keepBackup))
 	},
 	RunE: runRip,
 }
 
 func init() {
 	Cmd.AddCommand(ripCmd)
-	registerOptionalStringFlag(ripCmd.Flags(), backup, fmt.Sprintf("Backup disc before ripping (Optionally, specify a different destination for the backup: --%s={target dir})", backup))
+	util.RegisterOptionalStringFlag(ripCmd.Flags(), backup, fmt.Sprintf("Backup disc before ripping (Optionally, specify a different destination for the backup: --%s={target dir})", backup))
 	ripCmd.Flags().Bool(keepBackup, false, "Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
-}
-
-type optionalString struct {
-	value    string
-	wasEmpty bool
-}
-
-const emptyMarker = "\x00"
-
-func (o *optionalString) String() string {
-	return o.value
-}
-
-func (o *optionalString) Set(s string) error {
-	o.wasEmpty = s == emptyMarker
-	if !o.wasEmpty {
-		o.value = s
-	}
-	return nil
-}
-
-func (o *optionalString) Type() string {
-	return "string"
-}
-
-func registerOptionalStringFlag(flagSet *pflag.FlagSet, name, usage string) {
-	o := &optionalString{}
-	flagSet.Var(o, name, usage)
-	flagSet.Lookup(name).NoOptDefVal = emptyMarker
 }
 
 func runRip(cmd *cobra.Command, args []string) error {
@@ -88,10 +61,32 @@ func runRip(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	engineService := services.NewEngine(terminal.NewSelector())
+	eng := services.NewEngine(terminal.NewSelector())
 
-	plan, err := engineService.BuildPlan(
-		cmd.Context(),
+	interactive := detectInteractiveOutput(os.Stdout)
+	progressRenderer := terminal.NewProgressRenderer(os.Stdout, interactive)
+	defer progressRenderer.Close()
+	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
+
+	onEvent := func(e event.Event) {
+		err := progressRenderer.HandleEvent(e)
+		if err != nil {
+			services.Logger.Warnw("renderer failed", "error", err)
+		}
+	}
+
+	if cfg.Disc.Rip.Backup {
+		return runRipWithBackup(cmd, cfg, eng, onEvent, &previewRenderer)
+	}
+
+	return runRipNoBackup(cmd, cfg, eng, onEvent, &previewRenderer)
+}
+
+func runRipNoBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, onEvent engine.EngineEventSink, previewRenderer *terminal.PreviewRenderer) error {
+	ctx := cmd.Context()
+
+	plan, err := eng.BuildPlan(
+		ctx,
 		engine.BuildPlanConfig{
 			OutputDir: cfg.OutputDir,
 			DiscRoot:  cfg.DiscRoot,
@@ -102,27 +97,88 @@ func runRip(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	selectedPlan, err := engineService.SelectPlan(cfg.Disc.Mode, plan)
-	validatedPlan := engineService.ValidatePlan(selectedPlan)
+	selectedPlan, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	if err != nil {
+		return err
+	}
 
-	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
-	previewRenderer.Render(validatedPlan)
+	needed := selectedPlan.SumTitleSizes()
 
-	interactive := detectInteractiveOutput(os.Stdout)
-	renderer := terminal.NewProgressRenderer(os.Stdout, interactive)
-	defer renderer.Close()
+	checks := []validation.CheckGroup{
+		engine.RipChecks(selectedPlan, needed),
+	}
 
-	err = engineService.RunPlan(
-		cmd.Context(),
+	validatedPlan := eng.ValidatePlan(ctx, selectedPlan, checks)
+	if err = previewRenderer.Render(validatedPlan); err != nil {
+		return err
+	}
+
+	return eng.RunPlan(
+		ctx,
+		validatedPlan.DiscRoot,
 		validatedPlan,
-		func(e event.Event) {
-			err := renderer.HandleEvent(e)
-			if err != nil {
-				services.Logger.Warnw("renderer failed", "error", err)
-			}
+		onEvent)
+}
+
+func runRipWithBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, onEvent engine.EngineEventSink, previewRenderer *terminal.PreviewRenderer) error {
+	ctx := cmd.Context()
+
+	plan, err := eng.BuildPlan(
+		ctx,
+		engine.BuildPlanConfig{
+			OutputDir: cfg.OutputDir,
+			DiscRoot:  cfg.DiscRoot,
+			Rip:       cfg.Disc.Rip,
+			Templates: cfg.Templates,
 		})
 	if err != nil {
 		return err
+	}
+	selected, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	if err != nil {
+		return err
+	}
+
+	needed := selected.SumTitleSizes()
+	// This is an intentional overestimation.
+	// It's possible (likely) that we are counting the size of some segments more than once.
+	// Better to overestimate than underestimate
+	backupSize := plan.SumTitleSizes()
+
+	checks := []validation.CheckGroup{
+		engine.RipChecks(selected, needed),
+		engine.BackupChecks(cfg.Disc.Backup.OutputDir, backupSize),
+	}
+
+	validatedPlan := eng.ValidatePlan(ctx, selected, checks)
+	if err = previewRenderer.Render(validatedPlan); err != nil {
+		return err
+	}
+	if err := validatedPlan.Err(); err != nil {
+		return err
+	}
+
+	if err := eng.Backup(ctx, files.DiscSource(validatedPlan.DiscRoot), cfg.Disc.Backup.OutputDir, onEvent); err != nil {
+		return fmt.Errorf("backing up disc: %w", err)
+	}
+
+	resolvedTitles, err := eng.ResolveTitlesForSource(ctx, cfg.Disc.Backup.OutputDir, validatedPlan.Titles)
+	if err != nil {
+		return err
+	}
+	validatedPlan.Titles = resolvedTitles
+
+	if err := eng.RunPlan(ctx, cfg.Disc.Backup.OutputDir, validatedPlan, onEvent); err != nil {
+		return err
+	}
+
+	if !cfg.Disc.Rip.KeepBackup {
+		if cfg.Disc.Backup.OutputDir == cfg.OutputDir {
+			return fmt.Errorf("refusing to delete backup directory, it is the same as the output directory")
+		}
+		if err := os.RemoveAll(cfg.Disc.Backup.OutputDir); err != nil {
+			return fmt.Errorf("removing backup: %w", err)
+		}
 	}
 
 	return nil

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
+	"m-macdonald/mkv-mapper/internal/validation"
 )
 
 type PreviewRenderer struct {
@@ -45,10 +45,10 @@ func (p *PreviewRenderer) renderHeader(plan model.ValidatedPlan) error {
 func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 	warningsByTitle := indexByTitleId(
 		plan.BuildReport.Warnings,
-		func(w model.PlanWarning) *lines.TitleId { return &w.TitleId })
+		func(w model.PlanWarning) *string { s := string(w.TitleId); return &s })
 	validationsByTitle := indexByTitleId(
-		plan.ValidationReport.Results,
-		func(v model.ValidationResult) *lines.TitleId { return v.TitleId })
+		plan.ValidationReport.ResultsByGroup[validation.RipLabel],
+		func(v validation.Result) *string { return &v.RefID })
 	if _, err := fmt.Fprintln(p.out, "Titles:"); err != nil {
 		return err
 	}
@@ -62,12 +62,12 @@ func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 			return err
 		}
 
-		for _, warning := range warningsByTitle[title.TitleId] {
+		for _, warning := range warningsByTitle[string(title.TitleId)] {
 			if _, err = fmt.Fprintf(p.out, "    ⚠ %s\n", warning.Message); err != nil {
 				return err
 			}
 		}
-		for _, validation := range validationsByTitle[title.TitleId] {
+		for _, validation := range validationsByTitle[string(title.TitleId)] {
 			symbol := getValidationSymbol(validation.Status)
 			if _, err = fmt.Fprintf(p.out, "    %s %s\n", symbol, validation.Message); err != nil {
 				return err
@@ -77,32 +77,40 @@ func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 	return nil
 }
 
+var groupOrder = []validation.CheckGroupLabel{validation.RipLabel, validation.BackupLabel}
+
 func (r *PreviewRenderer) renderValidation(plan model.ValidatedPlan) error {
-	var discValidations []model.ValidationResult
-	for _, validation := range plan.ValidationReport.Results {
-		// Validations that are not associated with a title id are considered "disc-level"
-		if validation.TitleId == nil {
-			discValidations = append(discValidations, validation)
+	for _, label := range groupOrder {
+		results, ok := plan.ValidationReport.ResultsByGroup[label]
+		if !ok {
+			continue
 		}
-	}
-	if len(discValidations) == 0 {
-		return nil
-	}
-	if _, err := fmt.Fprintln(r.out, "\nValidation:"); err != nil {
-		return err
-	}
-	for _, result := range discValidations {
-		symbol := getValidationSymbol(result.Status)
-		_, err := fmt.Fprintf(r.out, "  %s %s\n", symbol, result.Message)
-		if err != nil {
+
+		var discValidations []validation.Result
+		for _, result := range results {
+			if result.RefID == "" {
+				discValidations = append(discValidations, result)
+			}
+		}
+		if len(discValidations) == 0 {
+			continue
+		}
+
+		if _, err := fmt.Fprintf(r.out, "\n%s:\n", label); err != nil {
 			return err
+		}
+		for _, result := range discValidations {
+			symbol := getValidationSymbol(result.Status)
+			if _, err := fmt.Fprintf(r.out, " %s %s\n", symbol, result.Message); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func indexByTitleId[T any](items []T, getId func(T) *lines.TitleId) map[lines.TitleId][]T {
-	index := map[lines.TitleId][]T{}
+func indexByTitleId[T any](items []T, getId func(T) *string) map[string][]T {
+	index := map[string][]T{}
 	for _, item := range items {
 		id := getId(item)
 		if id != nil {
@@ -112,13 +120,13 @@ func indexByTitleId[T any](items []T, getId func(T) *lines.TitleId) map[lines.Ti
 	return index
 }
 
-func getValidationSymbol(status model.ValidationStatus) string {
+func getValidationSymbol(status validation.Status) string {
 	switch status {
-	case model.ValidationStatusPass:
+	case validation.StatusPass:
 		return "✓"
-	case model.ValidationStatusWarn:
+	case validation.StatusWarn:
 		return "⚠"
-	case model.ValidationStatusFail:
+	case validation.StatusFail:
 		return "✗"
 	}
 	return ""

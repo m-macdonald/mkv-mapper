@@ -8,6 +8,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/engine"
+	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/model"
 
@@ -18,6 +19,7 @@ import (
 type Services struct {
 	closers       []io.Closer
 	discdbClient  *discdb.CachedClient
+	discResolver  *files.Resolver
 	Logger        *zap.SugaredLogger
 	makemkvClient *makemkv.Client
 }
@@ -45,16 +47,24 @@ func BuildServices(cfg config.Config) (*Services, error) {
 		return nil, err
 	}
 
+	discResolver := &files.Resolver{}
+
 	return &Services{
 		closers:       []io.Closer{cache},
 		discdbClient:  discdbClient,
+		discResolver:  discResolver,
 		Logger:        logger,
 		makemkvClient: makemkvClient,
 	}, nil
 }
 
 func (s *Services) NewEngine(selector model.Selector) *engine.Engine {
-	return engine.New(s.makemkvClient, s.discdbClient, s.Logger.Named("engine"), selector)
+	return engine.New(
+		s.makemkvClient, 
+		s.discdbClient, 
+		s.discResolver, 
+		s.Logger.Named("engine"), 
+		selector)
 }
 
 func (s *Services) Close() error {

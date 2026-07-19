@@ -1,44 +1,71 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
-	"m-macdonald/mkv-mapper/internal/makemkv"
+	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/naming"
 )
 
-func buildPlan(
-	discRoot string,
+type BuildPlanConfig struct {
+	DiscRoot  string
+	OutputDir string
+	Templates config.TemplateConfig
+	Rip       config.RipConfig
+	Backup    config.BackupConfig
+}
+
+func (e *Engine) BuildPlan(
+	ctx context.Context,
 	cfg BuildPlanConfig,
-	discRecord discdb.DiscRecord,
-	discInfo makemkv.DiscInfo,
 ) (model.Plan, error) {
-	mappings := mapper.MapTitles(discRecord, discInfo.Titles)
+	discRoot, err := e.discResolver.ResolveDiscRoot(cfg.DiscRoot)
+	if err != nil {
+		return model.Plan{}, err
+	}
+
+	hash, err := files.Hash(discRoot)
+	if err != nil {
+		return model.Plan{}, fmt.Errorf("unable to hash disc %w", err)
+	}
+
+	disc, err := e.discdb.LookupDisc(ctx, hash)
+	if err != nil {
+		return model.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
+	}
+
+	discInfo, err := e.makemkv.ReadDisc(ctx, discRoot)
+	if err != nil {
+		return model.Plan{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
+	}
+
+	mappings := mapper.MapTitles(disc, discInfo.Titles)
 
 	plan := model.Plan{
 		PlanBase: model.PlanBase{
 			MediaInfo: model.MediaInfo{
-				Title: discRecord.Media.Title,
-				Year:  discRecord.Media.Year,
+				Title: disc.Media.Title,
+				Year:  disc.Media.Year,
 			},
 			Disc: model.Disc{
 				Label:  discInfo.Label,
-				Format: discRecord.Disc.Format,
-				Hash:   discRecord.Disc.ContentHash,
+				Format: disc.Disc.Format,
+				Hash:   disc.Disc.ContentHash,
 			},
 			DiscRoot:   discRoot,
 			OutputDir:  cfg.OutputDir,
 			Backup:     cfg.Rip.Backup,
-			BackupDir:  cfg.Rip.BackupDir,
+			BackupDir:  cfg.Backup.OutputDir,
 			KeepBackup: cfg.Rip.KeepBackup,
 		},
 	}
 
-	err := resolveFilenames(cfg.Templates, mappings, discRecord, &plan)
+	err = resolveFilenames(cfg.Templates, mappings, disc, &plan)
 	if err != nil {
 		return model.Plan{}, err
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -34,17 +35,17 @@ func (c *CachedClient) LookupDisc(ctx context.Context, discHash string) (DiscRec
 	} else if ok {
 		return record, nil
 	}
-	
+
 	record, err := c.client.LookupDisc(ctx, discHash)
 	if err != nil {
-		return DiscRecord{}, fmt.Errorf("disc lookup: %w", err) 
+		return DiscRecord{}, fmt.Errorf("disc lookup: %w", err)
 	}
 
 	err = c.cache.PutDiscRecord(ctx, discHash, record)
 	if err != nil {
 		return DiscRecord{}, fmt.Errorf("disc cache write: %w", err)
 	}
-	
+
 	return record, nil
 }
 
@@ -169,7 +170,12 @@ func (r *RemoteClient) LookupDisc(ctx context.Context, discHash string) (DiscRec
 
 	// TODO: Determine how to return these errors
 	if len(graphqlResponse.Errors) > 0 {
-		return DiscRecord{}, fmt.Errorf("graphql returned errors")
+		errBuilder := strings.Builder{}
+		for _, e := range graphqlResponse.Errors {
+			errBuilder.WriteString(e.Message)
+		}
+
+		return DiscRecord{}, fmt.Errorf("graphql returned errors %q", errBuilder.String())
 	}
 
 	mediaItemNodes := graphqlResponse.Data.MediaItems.Nodes
@@ -182,4 +188,3 @@ func (r *RemoteClient) LookupDisc(ctx context.Context, discHash string) (DiscRec
 		return DiscRecord{}, fmt.Errorf("multiple discs found for hash %s", discHash)
 	}
 }
-

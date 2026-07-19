@@ -31,7 +31,19 @@ type cmdResult struct {
 	Error error
 }
 
+type cmdOptions struct {
+	checkTerminalOutcome bool
+}
+
 func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
+	return c.runCmdWithOptions(ctx, cmdOptions{checkTerminalOutcome: true}, args...)
+}
+
+func (c *Client) runCmdRaw(ctx context.Context, args ...string) <-chan cmdResult {
+	return c.runCmdWithOptions(ctx, cmdOptions{checkTerminalOutcome: false}, args...)
+}
+
+func (c *Client) runCmdWithOptions(ctx context.Context, opts cmdOptions, args ...string) <-chan cmdResult {
 	lineProcessor := lines.NewLineProcessor()
 	// TODO: Fix magic number
 	resultChan := make(chan cmdResult, 32)
@@ -60,6 +72,13 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 		scanner := bufio.NewScanner(stdOutPipe)
 		for scanner.Scan() {
 			parsedLine, err := lineProcessor.ProcessLine(scanner.Text())
+			if err == nil && opts.checkTerminalOutcome {
+				if msg, ok := parsedLine.(lines.Message); ok {
+					if terminal, failed := terminalMessage(msg); terminal && failed {
+						err = fmt.Errorf("makemkv reported failure: %s", msg.Message)
+					}
+				}
+			}
 
 			result := cmdResult{Line: parsedLine, Error: err}
 
@@ -79,6 +98,18 @@ func (c *Client) runCmd(ctx context.Context, args ...string) <-chan cmdResult {
 	}()
 
 	return resultChan
+}
+
+// TODO: Make these string statuses constant
+func terminalMessage(msg lines.Message) (terminal bool, failed bool) {
+	switch msg.Code {
+	case "5011": // Successful
+		return true, false
+	case "5069", "5080", "5010": // Backup failed / Failed to open disc
+		return true, true
+	default:
+		return false, false
+	}
 }
 
 type LineSink func(lines.ParsedLine)
@@ -239,7 +270,7 @@ func (c *Client) composeTitle(title *Title, line lines.TitleInfo) error {
 func (c *Client) ScanDrives(ctx context.Context) ([]lines.DriveScan, error) {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	resultChan := c.runCmd(cancelCtx, "info", "disc:9999")
+	resultChan := c.runCmdRaw(cancelCtx, "info", "disc:9999")
 
 	var drives []lines.DriveScan
 	for result := range resultChan {

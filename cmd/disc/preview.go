@@ -10,6 +10,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/terminal"
+	"m-macdonald/mkv-mapper/internal/validation"
 
 	"github.com/spf13/cobra"
 )
@@ -54,7 +55,11 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	validatedPlan := engineService.ValidatePlan(selectedPlan)
+	checkGroups := []validation.CheckGroup{
+		engine.RipChecks(selectedPlan, selectedPlan.SumTitleSizes()),
+	}
+
+	validatedPlan := engineService.ValidatePlan(cmd.Context(), selectedPlan, checkGroups)
 
 	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
 	previewRenderer.Render(validatedPlan)
