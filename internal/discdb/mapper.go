@@ -35,13 +35,13 @@ type Disc struct {
 }
 
 type Title struct {
-	Duration    string `json:"duration"`
-	DisplaySize string `json:"displaySize"`
-	SourceFile  string `json:"sourceFile"`
-	Size        uint64 `json:"size"`
-	SegmentMap  string `json:"segmentMap"`
-	Signature   signature.SegmentSignature
-	Item        *Item `json:"item,omitempty"`
+	Duration    string                     `json:"duration"`
+	DisplaySize string                     `json:"displaySize"`
+	SourceFile  string                     `json:"sourceFile"`
+	Size        uint64                     `json:"size"`
+	SegmentMap  string                     `json:"segmentMap"`
+	Signature   signature.SegmentSignature `json:"signature"`
+	Item        *Item                      `json:"item,omitempty"`
 }
 
 func (t *Title) ItemValue() (Item, bool) {
@@ -64,12 +64,6 @@ func (t *Title) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-
-	signature, err := signature.NormalizeSegments(t.SegmentMap)
-	if err != nil {
-		return fmt.Errorf("failed to normalize segment map %q: %w", t.SegmentMap, err)
-	}
-	t.Signature = signature
 	return nil
 }
 
@@ -120,6 +114,11 @@ func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHas
 		return DiscRecord{}, fmt.Errorf("no matching disc found for hash %s", discHash)
 	}
 
+	titles, err := titleResponsesToTitles(matchedDisc.Titles)
+	if err != nil {
+		return DiscRecord{}, fmt.Errorf("mapping title response to title: %w", err)
+	}
+
 	return DiscRecord{
 		Media: Media{
 			Title: mediaItemResponse.Title,
@@ -137,26 +136,31 @@ func mediaItemResponseToDiscRecord(mediaItemResponse *MediaItemResponse, discHas
 			Name:        matchedDisc.Name,
 			Format:      matchedDisc.Format,
 			Slug:        matchedDisc.Slug,
-			Titles:      titleResponsesToTitles(matchedDisc.Titles),
+			Titles:      titles,
 		},
 	}, nil
 }
 
-func titleResponsesToTitles(titleResponses []TitleResponse) []Title {
+func titleResponsesToTitles(titleResponses []TitleResponse) ([]Title, error) {
 	titles := make([]Title, 0, len(titleResponses))
 
 	for _, titleResponse := range titleResponses {
+		signature, err := signature.NormalizeSegments(titleResponse.SegmentMap)
+		if err != nil {
+			return nil, err
+		}
 		titles = append(titles, Title{
 			Duration:    titleResponse.Duration,
 			DisplaySize: titleResponse.DisplaySize,
 			SourceFile:  titleResponse.SourceFile,
 			Size:        titleResponse.Size,
 			SegmentMap:  titleResponse.SegmentMap,
+			Signature:   signature,
 			Item:        itemResponseToItem(titleResponse.Item),
 		})
 	}
 
-	return titles
+	return titles, nil
 }
 
 func itemResponseToItem(itemResponse *ItemResponse) *Item {
