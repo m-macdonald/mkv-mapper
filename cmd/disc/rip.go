@@ -13,7 +13,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/event"
-	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/terminal"
 	"m-macdonald/mkv-mapper/internal/util"
 	"m-macdonald/mkv-mapper/internal/validation"
@@ -158,7 +157,7 @@ func runRipWithBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine,
 		return err
 	}
 
-	if err := eng.Backup(ctx, files.DiscSource(validatedPlan.DiscRoot), cfg.Disc.Backup.OutputDir, onEvent); err != nil {
+	if err := eng.BackupPlanDisc(ctx, validatedPlan, cfg.Disc.Backup.OutputDir, onEvent); err != nil {
 		return fmt.Errorf("backing up disc: %w", err)
 	}
 
