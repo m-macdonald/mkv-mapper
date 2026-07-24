@@ -24,6 +24,12 @@ type Resolver struct {
 	makemkv *makemkv.Client
 }
 
+func NewResolver(makemkvClient *makemkv.Client) *Resolver {
+	return &Resolver{
+		makemkv: makemkvClient,
+	}
+}
+
 func (r *Resolver) Resolve(ctx context.Context, specified DiscSource) (DiscSource, error) {
 	if specified != "" {
 		return specified, nil

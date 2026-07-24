@@ -47,7 +47,7 @@ func BuildServices(cfg config.Config) (*Services, error) {
 		return nil, err
 	}
 
-	discResolver := &files.Resolver{}
+	discResolver := files.NewResolver(makemkvClient)
 
 	return &Services{
 		closers:       []io.Closer{cache},
