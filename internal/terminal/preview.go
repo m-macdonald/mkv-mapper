@@ -3,6 +3,7 @@ package terminal
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
@@ -45,7 +46,7 @@ func (p *PreviewRenderer) renderHeader(plan model.ValidatedPlan) error {
 func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 	warningsByTitle := indexByTitleId(
 		plan.BuildReport.Warnings,
-		func(w model.PlanWarning) *string { s := string(w.TitleId); return &s })
+		func(w model.PlanWarning) *string { s := strconv.Itoa(int(w.TitleId)); return &s })
 	validationsByTitle := indexByTitleId(
 		plan.ValidationReport.ResultsByGroup[validation.RipLabel],
 		func(v validation.Result) *string { return &v.RefID })
@@ -62,12 +63,13 @@ func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 			return err
 		}
 
-		for _, warning := range warningsByTitle[string(title.TitleId)] {
+		titleId := strconv.Itoa(int(title.TitleId))
+		for _, warning := range warningsByTitle[titleId] {
 			if _, err = fmt.Fprintf(p.out, "    ⚠ %s\n", warning.Message); err != nil {
 				return err
 			}
 		}
-		for _, validation := range validationsByTitle[string(title.TitleId)] {
+		for _, validation := range validationsByTitle[titleId] {
 			symbol := getValidationSymbol(validation.Status)
 			if _, err = fmt.Fprintf(p.out, "    %s %s\n", symbol, validation.Message); err != nil {
 				return err
