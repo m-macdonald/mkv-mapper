@@ -11,7 +11,6 @@ import (
 
 func (e *Engine) RunPlan(
 	ctx context.Context,
-	ripSource string,
 	plan model.ValidatedPlan,
 	onEvent EngineEventSink,
 ) error {
@@ -20,11 +19,11 @@ func (e *Engine) RunPlan(
 	}
 
 	if plan.IsAllTitles {
-		if err := e.ripAll(ctx, ripSource, plan.OutputDir, onEvent); err != nil {
+		if err := e.ripAll(ctx, plan.DiscRoot, plan.OutputDir, onEvent); err != nil {
 			return err
 		}
 	} else {
-		if err := e.ripSelected(ctx, ripSource, plan.OutputDir, plan.Titles, onEvent); err != nil {
+		if err := e.ripSelected(ctx, plan.DiscRoot, plan.OutputDir, plan.Titles, onEvent); err != nil {
 			return err
 		}
 	}

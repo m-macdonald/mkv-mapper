@@ -11,6 +11,9 @@ import (
 )
 
 func (e *Engine) BackupPlanDisc(ctx context.Context, plan model.ValidatedPlan, outputDir string, onEvent EngineEventSink) error {
+	if err := plan.Err(); err != nil {
+		return err
+	}
 	source, err := e.discResolver.ResolveByLabel(ctx, plan.Disc.Label)
 	if err != nil {
 		return fmt.Errorf("resolving backup source: %w", err)
