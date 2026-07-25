@@ -15,7 +15,14 @@ func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.S
 	case config.ModeTrimmedAuto:
 		selection = model.TrimmedSelection(plan)
 	case config.ModeManual:
-		selection, err = e.selector.Select(plan)
+		ids, err := e.selector.Select(plan)
+		if err != nil {
+			return model.SelectedPlan{}, err
+		}
+		selection, err = model.SelectionFromIds(plan, mode, ids)
+		if err != nil {
+			return model.SelectedPlan{}, err
+		}
 	default:
 		return model.SelectedPlan{}, fmt.Errorf("unknown selection mode: %v", mode)
 	}

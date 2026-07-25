@@ -1,18 +1,20 @@
-package model 
+package model
 
 import (
+	"fmt"
+
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 )
 
 type Selection struct {
-	Mode        config.SelectionMode
-	SelectedIds []lines.TitleId
+	Mode     config.SelectionMode
+	Selected []TitlePlan
 }
 
 func (s Selection) IsSelected(id lines.TitleId) bool {
-	for _, sel := range s.SelectedIds {
-		if sel == id {
+	for _, sel := range s.Selected {
+		if sel.TitleId == id {
 			return true
 		}
 	}
@@ -20,27 +22,37 @@ func (s Selection) IsSelected(id lines.TitleId) bool {
 }
 
 func FullSelection(plan Plan) Selection {
-	ids := make([]lines.TitleId, 0, len(plan.Titles))
-	for _, title := range plan.Titles {
-		ids = append(ids, title.TitleId)
-	}
-	return Selection{Mode: config.ModeFullAuto, SelectedIds: ids}
+	titles := filterTitles(plan.Titles, func(tp TitlePlan) bool { return true })
+	return Selection{Mode: config.ModeFullAuto, Selected: titles}
 }
 
 func TrimmedSelection(plan Plan) Selection {
-	var ids []lines.TitleId
+	titles := filterTitles(plan.Titles, func(tp TitlePlan) bool { return tp.IsMatched })
+	return Selection{Mode: config.ModeTrimmedAuto, Selected: titles}
+}
+
+func SelectionFromIds(plan Plan, mode config.SelectionMode, ids []lines.TitleId) (Selection, error) {
+	titlesById := make(map[lines.TitleId]TitlePlan, len(plan.Titles))
 	for _, title := range plan.Titles {
-		if title.IsMatched {
-			ids = append(ids, title.TitleId)
+		titlesById[title.TitleId] = title
+	}
+	titles := make([]TitlePlan, 0, len(ids))
+	for _, id := range ids {
+		title, ok := titlesById[id]
+		if !ok {
+			return Selection{}, fmt.Errorf("selection references unknown title id %v", id)
+		}
+		titles = append(titles, title)
+	}
+	return Selection{Mode: mode, Selected: titles}, nil
+}
+
+func filterTitles(titles []TitlePlan, keep func(TitlePlan) bool) []TitlePlan {
+	var kept []TitlePlan
+	for _, title := range titles {
+		if keep(title) {
+			kept = append(kept, title)
 		}
 	}
-	return Selection{Mode: config.ModeTrimmedAuto, SelectedIds: ids}
+	return kept
 }
-
-type SelectedPlan struct {
-	PlanBase
-	// Indicates if the selected titles include every title from the plan
-	IsAllTitles bool
-	BuildReport BuildReport
-}
-

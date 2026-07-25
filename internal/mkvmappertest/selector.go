@@ -2,7 +2,6 @@ package mkvmappertest
 
 import (
 	"m-macdonald/mkv-mapper/internal/config"
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/model"
 )
 
@@ -26,9 +25,9 @@ func (s *Selector) Select(plan model.Plan) (model.Selection, error) {
 	return s.selection, nil
 }
 
-func Selection(mode config.SelectionMode, ids ...lines.TitleId) model.Selection {
+func Selection(mode config.SelectionMode, titlePlans ...model.TitlePlan) model.Selection {
 	return model.Selection{
-		Mode:        mode,
-		SelectedIds: ids,
+		Mode:     mode,
+		Selected: titlePlans,
 	}
 }
