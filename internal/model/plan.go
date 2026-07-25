@@ -13,10 +13,6 @@ type PlanBase struct {
 	MediaInfo MediaInfo
 	OutputDir string
 	Titles    []TitlePlan
-
-	Backup     bool
-	BackupDir  string
-	KeepBackup bool
 }
 
 func (p PlanBase) SumTitleSizes() uint64 {
@@ -58,7 +54,29 @@ const (
 type Plan struct {
 	PlanBase
 	BuildReport BuildReport
+	// Indicates if the Plan contains all of the titles that makemkv discovered
+	IsAllTitles bool
 }
+
+func NewPlan(base PlanBase, report BuildReport) Plan {
+	return Plan{
+		PlanBase: base,
+		BuildReport: report,
+		// Newly constructed plans always have every title
+		IsAllTitles: true,
+	}
+}
+
+func NewSelectedPlan(plan Plan, selection Selection) (Plan, error) {
+	updatedBase := plan.PlanBase
+	updatedBase.Titles = selection.Selected
+
+	selected := NewPlan(updatedBase, plan.BuildReport)
+	selected.IsAllTitles = len(plan.Titles) == len(selection.Selected)
+
+	return selected, nil
+}
+
 
 type TitlePlan struct {
 	TitleId           lines.TitleId
@@ -76,9 +94,9 @@ type TitleIntent struct {
 	FinalName string
 }
 
-func (sp SelectedPlan) Intents() []TitleIntent {
-	intents := make([]TitleIntent, 0, len(sp.Titles))
-	for _, title := range sp.Titles {
+func (p Plan) Intents() []TitleIntent {
+	intents := make([]TitleIntent, 0, len(p.Titles))
+	for _, title := range p.Titles {
 		intents = append(intents, TitleIntent{
 			Signature: title.SegmentSignature,
 			FinalName: title.FinalName,
@@ -87,14 +105,14 @@ func (sp SelectedPlan) Intents() []TitleIntent {
 	return intents
 }
 
-func (p Plan) MergeIntents(intents []TitleIntent) (SelectedPlan, error) {
+func (p Plan) MergeIntents(intents []TitleIntent) (Plan, error) {
 	bySignature := groupTitleIntentBySignature(intents)
 	matched := filterTitles(p.Titles, func(tp TitlePlan) bool {
 		_, ok := bySignature[tp.SegmentSignature]
 		return ok
 	})
 	if len(matched) != len(intents) {
-		return SelectedPlan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(matched), len(intents))
+		return Plan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(matched), len(intents))
 	}
 	titles := make([]TitlePlan, len(matched))
 	for _, t := range matched {

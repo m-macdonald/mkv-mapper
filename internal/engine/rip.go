@@ -82,7 +82,7 @@ func (e *Engine) ripSelected(
 	return nil
 }
 
-func RipChecks(plan model.SelectedPlan, estimatedBytes uint64) validation.CheckGroup {
+func RipChecks(plan model.Plan, estimatedBytes uint64) validation.CheckGroup {
 	targets := make([]validation.FilenameTarget, 0, len(plan.Titles))
 	for _, title := range plan.Titles {
 		targets = append(targets, validation.FilenameTarget{

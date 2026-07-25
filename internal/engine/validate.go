@@ -7,7 +7,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 )
 
-func (e *Engine) ValidatePlan(ctx context.Context, plan model.SelectedPlan, checkGroups []validation.CheckGroup) model.ValidatedPlan {
+func (e *Engine) ValidatePlan(ctx context.Context, plan model.Plan, checkGroups []validation.CheckGroup) model.ValidatedPlan {
 	report := validation.Run(ctx, checkGroups)
 	return model.ValidatedPlan{
 		PlanBase:         plan.PlanBase,
