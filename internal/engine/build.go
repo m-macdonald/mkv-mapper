@@ -59,9 +59,6 @@ func (e *Engine) BuildPlan(
 			},
 			DiscRoot:   discRoot,
 			OutputDir:  cfg.OutputDir,
-			Backup:     cfg.Rip.Backup,
-			BackupDir:  cfg.Backup.OutputDir,
-			KeepBackup: cfg.Rip.KeepBackup,
 		},
 	}
 
