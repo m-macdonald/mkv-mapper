@@ -37,9 +37,9 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	engineService := services.NewEngine(terminal.NewSelector())
+	eng := services.NewEngine(terminal.NewSelector())
 
-	plan, err := engineService.BuildPlan(
+	plan, err := eng.BuildPlan(
 		cmd.Context(),
 		engine.BuildPlanConfig{
 			OutputDir: cfg.OutputDir,
@@ -51,18 +51,21 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	selectedPlan, err := engineService.SelectPlan(cfg.Disc.Mode, plan)
+
+	selectedPlan, err := eng.SelectPlan(cfg.Disc.Mode, plan)
 	if err != nil {
 		return err
 	}
+
 	checkGroups := []validation.CheckGroup{
 		engine.RipChecks(selectedPlan, selectedPlan.SumTitleSizes()),
 	}
-
-	validatedPlan := engineService.ValidatePlan(cmd.Context(), selectedPlan, checkGroups)
+	validatedPlan := eng.ValidatePlan(cmd.Context(), selectedPlan, checkGroups)
 
 	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
-	previewRenderer.Render(validatedPlan)
+	if err := previewRenderer.Render(validatedPlan); err != nil {
+		return err
+	}
 
 	return nil
 }
