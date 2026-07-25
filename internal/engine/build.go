@@ -126,6 +126,7 @@ func resolveFilenames(
 			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
 			Duration:          mapping.DiscDbTitle.Duration,
 			IsMatched:         mapping.DiscDbTitle.Item != nil,
+			SegmentSignature:  mapping.DiscDbTitle.Signature,
 		})
 	}
 
