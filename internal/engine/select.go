@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/model"
 )
@@ -30,5 +31,5 @@ func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.P
 		return model.Plan{}, err
 	}
 
-	return model.NewSelectedPlan(plan, selection)
+	return plan.ApplySelection(selection), nil
 }
