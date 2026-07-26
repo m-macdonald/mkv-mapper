@@ -60,23 +60,22 @@ type Plan struct {
 
 func NewPlan(base PlanBase, report BuildReport) Plan {
 	return Plan{
-		PlanBase: base,
+		PlanBase:    base,
 		BuildReport: report,
 		// Newly constructed plans always have every title
 		IsAllTitles: true,
 	}
 }
 
-func NewSelectedPlan(plan Plan, selection Selection) (Plan, error) {
-	updatedBase := plan.PlanBase
+func (p Plan) ApplySelection(selection Selection) Plan {
+	updatedBase := p.PlanBase
 	updatedBase.Titles = selection.Selected
 
-	selected := NewPlan(updatedBase, plan.BuildReport)
-	selected.IsAllTitles = len(plan.Titles) == len(selection.Selected)
+	selected := NewPlan(updatedBase, p.BuildReport)
+	selected.IsAllTitles = len(p.Titles) == len(selection.Selected)
 
-	return selected, nil
+	return selected
 }
-
 
 type TitlePlan struct {
 	TitleId           lines.TitleId
@@ -114,12 +113,12 @@ func (p Plan) MergeIntents(intents []TitleIntent) (Plan, error) {
 	if len(matched) != len(intents) {
 		return Plan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(matched), len(intents))
 	}
-	titles := make([]TitlePlan, len(matched))
+	titles := make([]TitlePlan, 0, len(matched))
 	for _, t := range matched {
 		t.FinalName = bySignature[t.SegmentSignature].FinalName
 		titles = append(titles, t)
 	}
-	return NewSelectedPlan(p, Selection{Selected: titles})
+	return p.ApplySelection(Selection{Selected: titles}), nil
 }
 
 func groupTitleIntentBySignature(intents []TitleIntent) map[signature.SegmentSignature]TitleIntent {
