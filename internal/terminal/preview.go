@@ -55,7 +55,7 @@ func (p *PreviewRenderer) renderTitles(plan model.ValidatedPlan) error {
 	}
 	for _, title := range plan.Titles {
 		_, err := fmt.Fprintf(p.out, "  %s → %s (%s)\n",
-			title.MakeMkvOutputFile,
+			title.SourcePlaylist,
 			title.FinalName,
 			util.FormatSize(title.EstimatedSize),
 		)
