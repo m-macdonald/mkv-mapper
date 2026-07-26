@@ -11,16 +11,19 @@ import (
 )
 
 const (
-	CachePath        = "cachePath"
-	ConfigFilename   = "config"
-	DiscMode         = "disc.mode"
-	DiscRoot         = "discRoot"
-	EnvPrefix        = "MKVMAP"
-	LogLevel         = "logLevel"
-	MakeMkvPath      = "makemkvPath"
-	OutputDir        = "outputDir"
-	ProgramDirname   = "mkv-mapper"
-	TemplateOverride = "templates.override"
+	CachePath           = "cachePath"
+	ConfigFilename      = "config"
+	DiscBackupOutputDir = "disc.backup.outputDir"
+	DiscRipBackup       = "disc.rip.backup"
+	DiscRipBackupKeep   = "disc.rip.keepBackup"
+	DiscMode            = "disc.mode"
+	DiscRoot            = "discRoot"
+	EnvPrefix           = "MKVMAP"
+	LogLevel            = "logLevel"
+	MakeMkvPath         = "makemkvPath"
+	OutputDir           = "outputDir"
+	ProgramDirname      = "mkv-mapper"
+	TemplateOverride    = "templates.override"
 )
 
 type Config struct {
@@ -34,10 +37,19 @@ type Config struct {
 }
 
 type DiscConfig struct {
-	Mode SelectionMode `mapstructure:"mode"`
+	Mode   SelectionMode `mapstructure:"mode"`
+	Backup BackupConfig  `mapstructure:"backup"`
+	Rip    RipConfig     `mapstructure:"rip"`
 }
 
-type RipConfig struct{}
+type RipConfig struct {
+	Backup     bool `mapstructure:"backup"`
+	KeepBackup bool `mapstructure:"keepBackup"`
+}
+
+type BackupConfig struct {
+	OutputDir string `mapstructure:"outputDir"`
+}
 
 type TemplateConfig struct {
 	Episode  string `mapstructure:"episode"`
@@ -74,18 +86,13 @@ func Load() (Config, error) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
-	return resolveConfig(DefaultConfig(), cfg)
-}
-
-func resolveConfig(base Config, user Config) (Config, error) {
-	merged := mergeConfig(base, user)
-	resolved, err := finalizeConfig(merged)
+	merged := mergeConfig(DefaultConfig(), cfg)
+	finalized, err := finalizeConfig(merged)
 	if err != nil {
 		return Config{}, err
 	}
 
-	return resolved, nil
+	return finalized, nil
 }
 
 func mergeConfig(base Config, user Config) Config {
@@ -122,6 +129,27 @@ func mergeDisc(base DiscConfig, user DiscConfig) DiscConfig {
 
 	if user.Mode != "" {
 		result.Mode = user.Mode
+	}
+	result.Backup = mergeBackup(base.Backup, user.Backup)
+	result.Rip = mergeRip(base.Rip, user.Rip)
+
+	return result
+}
+
+func mergeRip(base RipConfig, user RipConfig) RipConfig {
+	result := base
+
+	result.Backup = user.Backup
+	result.KeepBackup = user.KeepBackup
+
+	return result
+}
+
+func mergeBackup(base BackupConfig, user BackupConfig) BackupConfig {
+	result := base
+
+	if user.OutputDir != "" {
+		result.OutputDir = user.OutputDir
 	}
 
 	return result
@@ -180,6 +208,11 @@ func finalizeConfig(config Config) (Config, error) {
 	}
 
 	result.OutputDir, err = resolveAbsPath(result.OutputDir)
+	if err != nil {
+		return Config{}, err
+	}
+
+	result.Disc.Backup.OutputDir, err = resolveAbsPath(result.Disc.Backup.OutputDir)
 	if err != nil {
 		return Config{}, err
 	}

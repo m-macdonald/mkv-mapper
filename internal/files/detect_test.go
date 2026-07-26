@@ -22,7 +22,8 @@ func TestResolveDiscRoot(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := ResolveDiscRoot(test.cliRoot)
+		resolver := Resolver{}
+		got, err := resolver.ResolveDiscRoot(test.cliRoot)
 
 		if (err != nil) != test.wantErr {
 			t.Fatalf("unexpected error: %v", err)

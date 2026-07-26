@@ -53,7 +53,8 @@ func (p *LineProcessor) ProcessLine(line string) (ParsedLine, error) {
 		return nil, fmt.Errorf("invalid line: %s", line)
 	}
 
-	params, err := splitCsv(payload)
+	sanitizedPayload := sanitizePayload(payload)
+	params, err := splitCsv(sanitizedPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +65,10 @@ func (p *LineProcessor) ProcessLine(line string) (ParsedLine, error) {
 	}
 
 	return parser.Parse(line, params)
+}
+
+func sanitizePayload(payload string) string {
+	return strings.ReplaceAll(payload, `\"`, `""`)
 }
 
 func splitCsv(payload string) ([]string, error) {

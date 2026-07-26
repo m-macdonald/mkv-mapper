@@ -3,25 +3,24 @@ package engine
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/event"
 	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/model"
+	"m-macdonald/mkv-mapper/internal/signature"
 
 	"go.uber.org/zap"
 )
 
 type Engine struct {
-	makemkv  *makemkv.Client
-	discdb   *discdb.CachedClient
-	selector model.Selector
-	logger   *zap.SugaredLogger
+	makemkv      *makemkv.Client
+	discdb       *discdb.CachedClient
+	discResolver *files.Resolver
+	selector     model.Selector
+	logger       *zap.SugaredLogger
 }
 
 type EngineEventSink func(event.Event)
@@ -29,144 +28,41 @@ type EngineEventSink func(event.Event)
 func New(
 	makemkv *makemkv.Client,
 	discdb *discdb.CachedClient,
+	discResolver *files.Resolver,
 	logger *zap.SugaredLogger,
 	selector model.Selector,
 ) *Engine {
 	return &Engine{
-		makemkv:  makemkv,
-		discdb:   discdb,
-		logger:   logger,
-		selector: selector,
+		makemkv:      makemkv,
+		discdb:       discdb,
+		discResolver: discResolver,
+		logger:       logger,
+		selector:     selector,
 	}
 }
 
-func (e *Engine) BuildPlan(
-	ctx context.Context,
-	discRoot string,
-	outputDir string,
-	templateConfig config.TemplateConfig,
-) (model.Plan, error) {
-	discMounts, err := files.ResolveDiscRoot(discRoot)
-	switch {
-	case err != nil:
-		return model.Plan{}, fmt.Errorf("failure resolving disc root: %w", err)
-	case len(discMounts) < 1:
-		return model.Plan{}, fmt.Errorf("no disc found")
-	case len(discMounts) > 1:
-		return model.Plan{}, fmt.Errorf("multiple discs found: %s\nUse --disc-root to specify which disc to rip", strings.Join(discMounts, ", "))
-	}
-
-	// The above switch makes sure that we can safely get the first (and only) element
-	root := discMounts[0]
-
-	hash, err := files.Hash(root)
+func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titles []model.TitlePlan) ([]model.TitlePlan, error) {
+	disc, err := e.makemkv.ReadDisc(ctx, source)
 	if err != nil {
-		return model.Plan{}, fmt.Errorf("unable to hash disc %w", err)
+		return nil, fmt.Errorf("scanning rip source for title resolution: %w", err)
 	}
 
-	disc, err := e.discdb.LookupDisc(ctx, hash)
-	if err != nil {
-		return model.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
+	bySignature := make(map[signature.SegmentSignature]makemkv.Title, len(disc.Titles))
+	for _, title := range disc.Titles {
+		bySignature[title.Signature] = title
 	}
 
-	titles, err := e.makemkv.ReadTitles(ctx, root)
-	if err != nil {
-		return model.Plan{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
-	}
-
-	return buildPlan(root, outputDir, templateConfig, disc, titles)
-}
-
-func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.SelectedPlan, error) {
-	var selection model.Selection
-	var err error
-	switch mode {
-	case config.ModeFullAuto:
-		selection = model.FullSelection(plan)
-	case config.ModeTrimmedAuto:
-		selection = model.TrimmedSelection(plan)
-	case config.ModeManual:
-		selection, err = e.selector.Select(plan)
-	default:
-		return model.SelectedPlan{}, fmt.Errorf("unknown selection mode: %v", mode)
-	}
-	if err != nil {
-		return model.SelectedPlan{}, err
-	}
-
-	return model.NewSelectedPlan(plan, selection)
-}
-
-func (e *Engine) ValidatePlan(plan model.SelectedPlan) model.ValidatedPlan {
-	report := buildValidationReport(plan)
-	return model.ValidatedPlan{
-		PlanBase:         plan.PlanBase,
-		BuildReport:      plan.BuildReport,
-		ValidationReport: report,
-		IsAllTitles:      plan.IsAllTitles,
-	}
-}
-
-func (e *Engine) RunPlan(
-	ctx context.Context,
-	plan model.ValidatedPlan,
-	onEvent EngineEventSink,
-) error {
-	if plan.ValidationReport.HasErrors() {
-		return fmt.Errorf("plan has validation errors, aborting rip")
-	}
-
-	if plan.IsAllTitles {
-		if err := e.ripAll(ctx, plan, onEvent); err != nil {
-			return err
+	resolved := make([]model.TitlePlan, 0, len(titles))
+	for _, titlePlan := range titles {
+		title, ok := bySignature[titlePlan.SegmentSignature]
+		if !ok {
+			return nil, fmt.Errorf("title %q (signature %s) not found when re-scanning %s", titlePlan.FinalName, titlePlan.SegmentSignature, source)
 		}
-	} else {
-		if err := e.ripSelected(ctx, plan, onEvent); err != nil {
-			return err
-		}
-	}
 
-	mappings := make(map[string]string)
-	for _, titlePlan := range plan.Titles {
-		mappings[titlePlan.MakeMkvOutputFile] = titlePlan.FinalName
+		titlePlan.TitleId = title.TitleId
+		resolved = append(resolved, titlePlan)
 	}
-	errs := mapper.RenameTitles(plan.OutputDir, plan.OutputDir, mappings)
-	if len(errs) != 0 {
-		e.logger.Errorf("%v", errs)
-	}
-
-	return nil
-}
-
-func (e *Engine) ripAll(ctx context.Context, plan model.ValidatedPlan, onEvent EngineEventSink) error {
-	return e.makemkv.RipDisc(
-		ctx,
-		plan.DiscRoot,
-		plan.OutputDir,
-		func(pl lines.ParsedLine) {
-			if event, ok := parsedLineToEvent(pl); ok {
-				onEvent(event)
-			}
-		})
-}
-
-func (e *Engine) ripSelected(ctx context.Context, plan model.ValidatedPlan, onEvent EngineEventSink) error {
-	for _, title := range plan.Titles {
-		err := e.makemkv.RipTitle(
-			ctx,
-			plan.DiscRoot,
-			plan.OutputDir,
-			title.TitleId,
-			func(pl lines.ParsedLine) {
-				if event, ok := parsedLineToEvent(pl); ok {
-					onEvent(event)
-				}
-			})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return resolved, nil
 }
 
 func parsedLineToEvent(line lines.ParsedLine) (event.Event, bool) {

@@ -8,7 +8,9 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
+	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/terminal"
+	"m-macdonald/mkv-mapper/internal/validation"
 
 	"github.com/spf13/cobra"
 )
@@ -35,24 +37,35 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	}
 	defer services.Close()
 
-	engine := services.NewEngine(terminal.NewSelector())
+	eng := services.NewEngine(terminal.NewSelector())
 
-	plan, err := engine.BuildPlan(
+	plan, err := eng.BuildPlan(
 		cmd.Context(),
-		cfg.DiscRoot,
-		cfg.OutputDir,
-		cfg.Templates)
+		engine.BuildPlanConfig{
+			OutputDir: cfg.OutputDir,
+			DiscRoot:  cfg.DiscRoot,
+			Templates: cfg.Templates,
+			Rip:       cfg.Disc.Rip,
+		},
+	)
 	if err != nil {
 		return err
 	}
-	selectedPlan, err := engine.SelectPlan(cfg.Disc.Mode, plan)
+
+	selectedPlan, err := eng.SelectPlan(cfg.Disc.Mode, plan)
 	if err != nil {
 		return err
 	}
-	validatedPlan := engine.ValidatePlan(selectedPlan)
+
+	checkGroups := []validation.CheckGroup{
+		engine.RipChecks(selectedPlan, selectedPlan.SumTitleSizes()),
+	}
+	validatedPlan := eng.ValidatePlan(cmd.Context(), selectedPlan, checkGroups)
 
 	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
-	previewRenderer.Render(validatedPlan)
+	if err := previewRenderer.Render(validatedPlan); err != nil {
+		return err
+	}
 
 	return nil
 }

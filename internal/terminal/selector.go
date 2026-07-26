@@ -3,7 +3,6 @@ package terminal
 import (
 	"fmt"
 
-	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
@@ -17,9 +16,9 @@ func NewSelector() Selector {
 	return Selector{}
 }
 
-func (Selector) Select(plan model.Plan) (model.Selection, error) {
+func (Selector) Select(plan model.Plan) ([]lines.TitleId, error) {
 	if len(plan.Titles) == 0 {
-		return model.Selection{}, fmt.Errorf("no titles available to select from")
+		return nil, fmt.Errorf("no titles available to select from")
 	}
 
 	options := newTitleOptions(plan.Titles)
@@ -30,10 +29,10 @@ func (Selector) Select(plan model.Plan) (model.Selection, error) {
 		WithMaxHeight(15).
 		Show()
 	if err != nil {
-		return model.Selection{}, fmt.Errorf("title selection: %w", err)
+		return nil, fmt.Errorf("title selection: %w", err)
 	}
 	if len(selected) == 0 {
-		return model.Selection{}, fmt.Errorf("at least one title must be selected")
+		return nil, fmt.Errorf("at least one title must be selected")
 	}
 
 	ids := make([]lines.TitleId, 0, len(selected))
@@ -42,7 +41,8 @@ func (Selector) Select(plan model.Plan) (model.Selection, error) {
 			ids = append(ids, id)
 		}
 	}
-	return model.Selection{Mode: config.ModeManual, SelectedIds: ids}, nil
+
+	return ids, nil
 }
 
 func formatTitleLabel(title model.TitlePlan) string {
@@ -50,8 +50,8 @@ func formatTitleLabel(title model.TitlePlan) string {
 	if title.IsMatched {
 		matched = " [matched]"
 	}
-	// This label is safe to key off of only because TitleId and FinalName are both unique. Bear this in mind when making any future changes
-	return fmt.Sprintf("%d: %s (%s / %s)%s", title.TitleId, title.FinalName, title.Duration, util.FormatSize(title.EstimatedSize), matched)
+	// This label is safe to key off of only because SourcePlaylist and FinalName are both unique. Bear this in mind when making any future changes
+	return fmt.Sprintf("%s: %s (%s / %s)%s", title.SourcePlaylist, title.FinalName, title.Duration, util.FormatSize(title.EstimatedSize), matched)
 }
 
 type titleOption struct {

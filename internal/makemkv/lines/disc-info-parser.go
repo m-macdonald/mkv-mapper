@@ -4,6 +4,10 @@ import (
 	"strconv"
 )
 
+const (
+	DiscInfoVolumeName = 32
+)
+
 // Messages in the format
 type DiscInfo struct {
 	parsedLineBase
