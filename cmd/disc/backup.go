@@ -35,6 +35,9 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	}
 
 	services, err := app.BuildServices(cfg)
+	if err != nil {
+		return err
+	}
 	eng := services.NewEngine(terminal.NewSelector())
 	renderer := terminal.NewProgressRenderer(os.Stdout, true)
 

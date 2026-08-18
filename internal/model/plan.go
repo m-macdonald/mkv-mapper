@@ -7,10 +7,16 @@ import (
 	"m-macdonald/mkv-mapper/internal/signature"
 )
 
+type DiscIdentity struct {
+	DiscRoot string
+	Label    string
+}
+
 type PlanBase struct {
-	Disc      Disc
-	DiscRoot  string
+	DiscIdentity
 	MediaInfo MediaInfo
+	DiscInfo  DiscInfo
+	Format    string
 	OutputDir string
 	Titles    []TitlePlan
 }
@@ -23,15 +29,25 @@ func (p PlanBase) SumTitleSizes() uint64 {
 	return total
 }
 
-type Disc struct {
-	Label  string
-	Format string
-	Hash   string
+func (p PlanBase) Intents() []TitleIntent {
+	intents := make([]TitleIntent, 0, len(p.Titles))
+	for _, title := range p.Titles {
+		intents = append(intents, TitleIntent{
+			Signature: title.SegmentSignature,
+			FinalName: title.FinalName,
+		})
+	}
+	return intents
 }
 
 type MediaInfo struct {
 	Title string
 	Year  int
+}
+
+type DiscInfo struct {
+	Hash   string
+	Format string
 }
 
 type BuildReport struct {
@@ -91,17 +107,6 @@ type TitlePlan struct {
 type TitleIntent struct {
 	Signature signature.SegmentSignature
 	FinalName string
-}
-
-func (p Plan) Intents() []TitleIntent {
-	intents := make([]TitleIntent, 0, len(p.Titles))
-	for _, title := range p.Titles {
-		intents = append(intents, TitleIntent{
-			Signature: title.SegmentSignature,
-			FinalName: title.FinalName,
-		})
-	}
-	return intents
 }
 
 func (p Plan) MergeIntents(intents []TitleIntent) (Plan, error) {
