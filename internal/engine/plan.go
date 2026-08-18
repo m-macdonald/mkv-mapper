@@ -26,7 +26,10 @@ type planContent struct {
 	buildReport model.BuildReport
 }
 
-func (e *Engine) BuildPlan(ctx context.Context, cfg BuildPlanConfig) (model.Plan, error) {
+func (e *Engine) BuildPlan(
+	ctx context.Context,
+	cfg BuildPlanConfig,
+) (model.Plan, error) {
 	identity, discInfo, err := e.ScanDisc(ctx, cfg.DiscRoot)
 	if err != nil {
 		return model.Plan{}, err
@@ -34,8 +37,12 @@ func (e *Engine) BuildPlan(ctx context.Context, cfg BuildPlanConfig) (model.Plan
 	return e.CompletePlan(ctx, identity, discInfo, cfg)
 }
 
-func (e *Engine) BuildBackupPlan(ctx context.Context, cfg BuildBackupPlanConfig) (model.BackupPlan, error) {
-	identity, discInfo, err := e.ScanDisc(ctx, cfg.DiscRoot)
+func (e *Engine) BuildBackupPlan(
+	ctx context.Context,
+	discRoot string,
+	cfg BuildBackupPlanConfig,
+) (model.BackupPlan, error) {
+	identity, discInfo, err := e.ScanDisc(ctx, discRoot)
 	if err != nil {
 		return model.BackupPlan{}, err
 	}
@@ -86,7 +93,6 @@ func (e *Engine) CompletePlan(
 }
 
 type BuildBackupPlanConfig struct {
-	DiscRoot   string
 	OutputDir  string
 	KeepBackup bool
 }

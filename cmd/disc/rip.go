@@ -233,7 +233,6 @@ func planBackup(
 ) model.ValidatedBackupPlan {
 	backupCfg := engine.BuildBackupPlanConfig{
 		OutputDir:  cfg.OutputDir,
-		DiscRoot:   cfg.Disc.Backup.OutputDir,
 		KeepBackup: cfg.Disc.Rip.KeepBackup,
 	}
 	backupPlan := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
