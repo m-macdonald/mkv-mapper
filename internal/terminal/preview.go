@@ -37,8 +37,8 @@ func (p *PreviewRenderer) renderHeader(plan model.ValidatedPlan) error {
 	_, err := fmt.Fprintf(p.out, "%s (%d) — %s\nHash: %s\n\n",
 		plan.MediaInfo.Title,
 		plan.MediaInfo.Year,
-		plan.Disc.Format,
-		plan.Disc.Hash,
+		plan.DiscInfo.Format,
+		plan.DiscInfo.Hash,
 	)
 	return err
 }
@@ -88,24 +88,8 @@ func (r *PreviewRenderer) renderValidation(plan model.ValidatedPlan) error {
 			continue
 		}
 
-		var discValidations []validation.Result
-		for _, result := range results {
-			if result.RefID == "" {
-				discValidations = append(discValidations, result)
-			}
-		}
-		if len(discValidations) == 0 {
-			continue
-		}
-
-		if _, err := fmt.Fprintf(r.out, "\n%s:\n", label); err != nil {
+		if err := renderCheckResults(r.out, label, results); err != nil {
 			return err
-		}
-		for _, result := range discValidations {
-			symbol := getValidationSymbol(result.Status)
-			if _, err := fmt.Fprintf(r.out, " %s %s\n", symbol, result.Message); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -120,16 +104,4 @@ func indexByTitleId[T any](items []T, getId func(T) *string) map[string][]T {
 		}
 	}
 	return index
-}
-
-func getValidationSymbol(status validation.Status) string {
-	switch status {
-	case validation.StatusPass:
-		return "✓"
-	case validation.StatusWarn:
-		return "⚠"
-	case validation.StatusFail:
-		return "✗"
-	}
-	return ""
 }

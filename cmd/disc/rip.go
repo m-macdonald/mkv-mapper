@@ -6,9 +6,8 @@ package disc
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
-
-	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
@@ -65,26 +64,31 @@ func runRip(cmd *cobra.Command, args []string) error {
 
 	eng := services.NewEngine(terminal.NewSelector())
 
-	interactive := detectInteractiveOutput(os.Stdout)
-	progressRenderer := terminal.NewProgressRenderer(os.Stdout, interactive)
-	defer progressRenderer.Close()
-	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
+	out := os.Stdout
+	renderers := newRenderers(out, terminal.DetectInteractiveOutput(out))
+	defer renderers.close()
 
 	onEvent := func(e event.Event) {
-		err := progressRenderer.HandleEvent(e)
+		err := renderers.progress.HandleEvent(e)
 		if err != nil {
 			services.Logger.Warnw("renderer failed", "error", err)
 		}
 	}
 
 	if cfg.Disc.Rip.Backup {
-		return runRipWithBackup(cmd, cfg, eng, onEvent, &previewRenderer)
+		return runRipWithBackup(cmd, cfg, eng, onEvent, renderers)
 	}
 
-	return runRipNoBackup(cmd, cfg, eng, onEvent, &previewRenderer)
+	return runRipNoBackup(cmd, cfg, eng, onEvent, renderers)
 }
 
-func runRipNoBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, onEvent engine.EngineEventSink, previewRenderer *terminal.PreviewRenderer) error {
+func runRipNoBackup(
+	cmd *cobra.Command,
+	cfg config.Config,
+	eng *engine.Engine,
+	onEvent engine.EngineEventSink,
+	renderers renderers,
+) error {
 	ctx := cmd.Context()
 
 	plan, err := buildPlan(ctx, eng, cfg, cfg.DiscRoot)
@@ -101,7 +105,7 @@ func runRipNoBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, o
 	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan, needed)}
 	validatedPlan := eng.ValidatePlan(ctx, selectedPlan, checks)
 
-	if err = previewRenderer.Render(validatedPlan); err != nil {
+	if err = renderers.preview.Render(validatedPlan); err != nil {
 		return err
 	}
 
@@ -113,7 +117,7 @@ func runRipWithBackup(
 	cfg config.Config,
 	eng *engine.Engine,
 	onEvent engine.EngineEventSink,
-	previewRenderer *terminal.PreviewRenderer,
+	renderers renderers,
 ) error {
 	ctx := cmd.Context()
 
@@ -126,15 +130,16 @@ func runRipWithBackup(
 
 	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
 
-	// TODO: Add a preview renderer for the validatedBackupPlan. 
-	// Placing it before rip plan construction because if backup validations fail there's no point in building the rip plan
+	if err := renderers.backup.Render(validatedBackupPlan); err != nil {
+		return err
+	}
 
 	validatedPlan, err := planRip(ctx, cfg, eng, identity, discInfo)
 	if err != nil {
 		return err
 	}
 
-	if err = previewRenderer.Render(validatedPlan); err != nil {
+	if err = renderers.preview.Render(validatedPlan); err != nil {
 		return err
 	}
 
@@ -264,7 +269,20 @@ func merge(
 	return mergedValidatedPlan, nil
 }
 
-// TODO: Centralize this check when multiple commands are implemented
-func detectInteractiveOutput(out *os.File) bool {
-	return term.IsTerminal(int(out.Fd()))
+type renderers struct {
+	backup   terminal.BackupSummaryRenderer
+	preview  terminal.PreviewRenderer
+	progress terminal.ProgressRenderer
+}
+
+func newRenderers(out io.Writer, interactive bool) renderers {
+	return renderers{
+		backup:   terminal.NewBackupSummaryRenderer(out),
+		preview:  terminal.NewPreviewRenderer(out),
+		progress: *terminal.NewProgressRenderer(out, interactive),
+	}
+}
+
+func (r *renderers) close() error {
+	return r.progress.Close()
 }

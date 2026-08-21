@@ -47,14 +47,21 @@ func runBackup(cmd *cobra.Command, args []string) error {
 
 	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
 
-	renderer := terminal.NewProgressRenderer(os.Stdout, true)
+	out := os.Stdout
+	progressRenderer := terminal.NewProgressRenderer(out, terminal.DetectInteractiveOutput(out))
+	defer progressRenderer.Close()
+	backupRenderer := terminal.NewBackupSummaryRenderer(out)
+
+	if err := backupRenderer.Render(validatedBackupPlan); err != nil {
+		return err
+	}
 
 	return eng.BackupPlanDisc(
 		ctx,
 		validatedBackupPlan,
 		cfg.Disc.Backup.OutputDir,
 		func(e event.Event) {
-			err := renderer.HandleEvent(e)
+			err := progressRenderer.HandleEvent(e)
 			if err != nil {
 				services.Logger.Warnw("renderer failed", "error", err)
 			}
