@@ -1,5 +1,7 @@
 # Local directory containing files that should not be committed
 local
+# Exclude goreleaser dir
+dist
 
 # Binaries for programs and plugins
 *.exe
