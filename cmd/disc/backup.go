@@ -6,7 +6,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/event"
-	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/terminal"
 
 	"github.com/spf13/cobra"
@@ -29,6 +28,7 @@ func init() {
 }
 
 func runBackup(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -39,11 +39,19 @@ func runBackup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	eng := services.NewEngine(terminal.NewSelector())
+
+	identity, discInfo, err := eng.ScanDisc(ctx, discRoot)
+	if err != nil {
+		return err
+	}
+
+	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
+
 	renderer := terminal.NewProgressRenderer(os.Stdout, true)
 
-	return eng.Backup(
-		cmd.Context(),
-		files.DiscSource(cfg.DiscRoot),
+	return eng.BackupPlanDisc(
+		ctx,
+		validatedBackupPlan,
 		cfg.Disc.Backup.OutputDir,
 		func(e event.Event) {
 			err := renderer.HandleEvent(e)

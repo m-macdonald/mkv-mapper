@@ -18,10 +18,10 @@ func (e *Engine) BackupPlanDisc(ctx context.Context, plan model.ValidatedBackupP
 	if err != nil {
 		return fmt.Errorf("resolving backup source: %w", err)
 	}
-	return e.Backup(ctx, source, outputDir, onEvent)
+	return e.backup(ctx, source, outputDir, onEvent)
 }
 
-func (e *Engine) Backup(ctx context.Context, specified files.DiscSource, outputDir string, onEvent EngineEventSink) error {
+func (e *Engine) backup(ctx context.Context, specified files.DiscSource, outputDir string, onEvent EngineEventSink) error {
 	source, err := e.discResolver.Resolve(ctx, specified)
 	if err != nil {
 		return err

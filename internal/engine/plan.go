@@ -37,18 +37,6 @@ func (e *Engine) BuildPlan(
 	return e.CompletePlan(ctx, identity, discInfo, cfg)
 }
 
-func (e *Engine) BuildBackupPlan(
-	ctx context.Context,
-	discRoot string,
-	cfg BuildBackupPlanConfig,
-) (model.BackupPlan, error) {
-	identity, discInfo, err := e.ScanDisc(ctx, discRoot)
-	if err != nil {
-		return model.BackupPlan{}, err
-	}
-	return e.CompleteBackupPlan(identity, discInfo, cfg), nil
-}
-
 func (e *Engine) CompletePlan(
 	ctx context.Context,
 	identity model.DiscIdentity,
