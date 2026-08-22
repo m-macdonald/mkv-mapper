@@ -143,7 +143,7 @@ func runRipWithBackup(
 		return err
 	}
 
-	if err := eng.BackupPlanDisc(ctx, validatedBackupPlan, cfg.Disc.Backup.OutputDir, onEvent); err != nil {
+	if err := eng.BackupPlanDisc(ctx, validatedBackupPlan, onEvent); err != nil {
 		return fmt.Errorf("backing up disc: %w", err)
 	}
 
@@ -216,7 +216,6 @@ func planRip(
 func validateBackupPlan(
 	ctx context.Context,
 	eng *engine.Engine,
-	cfg config.Config,
 	plan model.BackupPlan,
 ) model.ValidatedBackupPlan {
 	// This is an intentional overestimation.
@@ -224,7 +223,7 @@ func validateBackupPlan(
 	// Better to overestimate than underestimate
 	backupSize := plan.SumTitleSizes()
 	backupChecks := []validation.CheckGroup{
-		engine.BackupChecks(cfg.Disc.Backup.OutputDir, backupSize),
+		engine.BackupChecks(plan.OutputDir, backupSize),
 	}
 	return eng.ValidateBackupPlan(ctx, plan, backupChecks)
 }
@@ -241,7 +240,7 @@ func planBackup(
 		KeepBackup: cfg.Disc.Rip.KeepBackup,
 	}
 	backupPlan := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
-	return validateBackupPlan(ctx, eng, cfg, backupPlan)
+	return validateBackupPlan(ctx, eng, backupPlan)
 }
 
 func merge(

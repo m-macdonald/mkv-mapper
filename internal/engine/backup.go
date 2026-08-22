@@ -10,7 +10,11 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 )
 
-func (e *Engine) BackupPlanDisc(ctx context.Context, plan model.ValidatedBackupPlan, outputDir string, onEvent EngineEventSink) error {
+func (e *Engine) BackupPlanDisc(
+	ctx context.Context,
+	plan model.ValidatedBackupPlan,
+	onEvent EngineEventSink,
+) error {
 	if err := plan.Err(); err != nil {
 		return err
 	}
@@ -18,7 +22,7 @@ func (e *Engine) BackupPlanDisc(ctx context.Context, plan model.ValidatedBackupP
 	if err != nil {
 		return fmt.Errorf("resolving backup source: %w", err)
 	}
-	return e.backup(ctx, source, outputDir, onEvent)
+	return e.backup(ctx, source, plan.OutputDir, onEvent)
 }
 
 func (e *Engine) backup(ctx context.Context, specified files.DiscSource, outputDir string, onEvent EngineEventSink) error {

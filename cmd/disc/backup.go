@@ -1,6 +1,7 @@
 package disc
 
 import (
+	"fmt"
 	"os"
 
 	"m-macdonald/mkv-mapper/internal/app"
@@ -40,12 +41,13 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	}
 	eng := services.NewEngine(terminal.NewSelector())
 
-	identity, discInfo, err := eng.ScanDisc(ctx, discRoot)
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
 	if err != nil {
 		return err
 	}
 
 	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
+	fmt.Printf("%v", validatedBackupPlan)
 
 	out := os.Stdout
 	progressRenderer := terminal.NewProgressRenderer(out, terminal.DetectInteractiveOutput(out))
@@ -59,7 +61,6 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	return eng.BackupPlanDisc(
 		ctx,
 		validatedBackupPlan,
-		cfg.Disc.Backup.OutputDir,
 		func(e event.Event) {
 			err := progressRenderer.HandleEvent(e)
 			if err != nil {
