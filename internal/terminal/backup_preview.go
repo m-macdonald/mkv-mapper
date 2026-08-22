@@ -20,14 +20,9 @@ func NewBackupSummaryRenderer(out io.Writer) BackupSummaryRenderer {
 }
 
 func (b *BackupSummaryRenderer) Render(plan model.ValidatedBackupPlan) error {
-	keep := "discarded after rip"
-	if plan.KeepBackup {
-		keep = "kept"
-	}
-	_, err := fmt.Fprintf(b.out, "Backup:\n %s → %s (%s, ~%s)\n\n",
+	_, err := fmt.Fprintf(b.out, "Backup:\n %s → %s (~%s)\n\n",
 		plan.Label,
 		plan.OutputDir,
-		keep,
 		util.FormatSize(plan.SumTitleSizes()),
 	)
 	if err != nil {
