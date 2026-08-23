@@ -1,7 +1,6 @@
 package disc
 
 import (
-	"fmt"
 	"os"
 
 	"m-macdonald/mkv-mapper/internal/app"

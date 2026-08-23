@@ -5,8 +5,9 @@ import (
 	"io"
 
 	"m-macdonald/mkv-mapper/internal/model"
-	"m-macdonald/mkv-mapper/internal/util"
-	"m-macdonald/mkv-mapper/internal/validation"
+	"m-macdonald/mkv-mapper/internal/preview"
+
+	"github.com/pterm/pterm"
 )
 
 type BackupSummaryRenderer struct {
@@ -20,18 +21,33 @@ func NewBackupSummaryRenderer(out io.Writer) BackupSummaryRenderer {
 }
 
 func (b *BackupSummaryRenderer) Render(plan model.ValidatedBackupPlan) error {
-	_, err := fmt.Fprintf(b.out, "Backup:\n %s → %s (~%s)\n\n",
-		plan.Label,
-		plan.OutputDir,
-		util.FormatSize(plan.SumTitleSizes()),
-	)
-	if err != nil {
+	view := preview.BuildBackupPlanView(plan)
+
+	if err := b.renderHeader(view); err != nil {
 		return err
 	}
 
-	results, ok := plan.Report.ResultsByGroup[validation.BackupLabel]
-	if !ok {
-		return nil
+	if err := b.renderValidation(view); err != nil {
+		return err
 	}
-	return renderCheckResults(b.out, validation.BackupLabel, results)
+	if _, err := fmt.Fprintln(b.out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *BackupSummaryRenderer) renderHeader(view preview.BackupPlanView) error {
+	line := pterm.NewStyle(pterm.Bold).Sprintf("Backup: %s → %s (~%s)", view.Label, view.OutputDir, view.Size)
+	_, err := fmt.Fprintf(b.out, "%s\n\n", line)
+	return err
+}
+
+func (b *BackupSummaryRenderer) renderValidation(view preview.BackupPlanView) error {
+	for _, group := range view.CheckGroups {
+		if err := renderCheckResults(b.out, group.Label, group.Results); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
