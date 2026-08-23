@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"strconv"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/mapper"
@@ -15,7 +16,7 @@ func (e *Engine) RunPlan(
 	onEvent EngineEventSink,
 ) error {
 	if err := plan.Err(); err != nil {
-		return err 
+		return err
 	}
 
 	if plan.IsAllTitles {
@@ -86,7 +87,7 @@ func RipChecks(plan model.Plan, estimatedBytes uint64) validation.CheckGroup {
 	targets := make([]validation.FilenameTarget, 0, len(plan.Titles))
 	for _, title := range plan.Titles {
 		targets = append(targets, validation.FilenameTarget{
-			ID:       string(title.TitleId),
+			ID:       strconv.Itoa(int(title.TitleId)),
 			FileName: title.FinalName,
 		})
 	}
