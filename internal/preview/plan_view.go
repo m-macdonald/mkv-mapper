@@ -56,7 +56,6 @@ func BuildPlanView(plan model.ValidatedPlan) PlanView {
 		plan.ValidationReport.ResultsByGroup[validation.RipLabel],
 		func(v validation.Result) *string { return &v.RefID },
 	)
-	fmt.Printf("ResultsByGroup:\n%v", plan.ValidationReport.ResultsByGroup)
 
 	view := PlanView{
 		DiscName: plan.MediaInfo.Title,
@@ -100,7 +99,6 @@ func BuildPlanView(plan model.ValidatedPlan) PlanView {
 			tv.Notes = append(tv.Notes, Note{Status: r.Status, Message: r.Message})
 		}
 
-		fmt.Printf("%v", tv)
 		if t.IsMatched {
 			tv.Matched = true
 			view.Matched = append(view.Matched, tv)
