@@ -128,7 +128,10 @@ func runRipWithBackup(
 		return err
 	}
 
-	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
+	validatedBackupPlan, err := planBackup(ctx, eng, cfg, identity, discInfo)
+	if err != nil {
+		return err
+	}
 
 	if err := renderers.backup.Render(validatedBackupPlan); err != nil {
 		return err
@@ -234,13 +237,16 @@ func planBackup(
 	cfg config.Config,
 	identity model.DiscIdentity,
 	discInfo makemkv.DiscInfo,
-) model.ValidatedBackupPlan {
+) (model.ValidatedBackupPlan, error) {
 	backupCfg := engine.BuildBackupPlanConfig{
 		OutputDir:  cfg.Disc.Backup.OutputDir,
 		KeepBackup: cfg.Disc.Rip.KeepBackup,
 	}
-	backupPlan := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
-	return validateBackupPlan(ctx, eng, backupPlan)
+	backupPlan, err := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
+	if err != nil {
+		return model.ValidatedBackupPlan{}, err
+	}
+	return validateBackupPlan(ctx, eng, backupPlan), nil
 }
 
 func merge(
