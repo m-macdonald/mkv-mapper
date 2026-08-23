@@ -6,7 +6,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/event"
-	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/terminal"
 
 	"github.com/spf13/cobra"
@@ -29,21 +28,39 @@ func init() {
 }
 
 func runBackup(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
 
 	services, err := app.BuildServices(cfg)
+	if err != nil {
+		return err
+	}
 	eng := services.NewEngine(terminal.NewSelector())
-	renderer := terminal.NewProgressRenderer(os.Stdout, true)
 
-	return eng.Backup(
-		cmd.Context(),
-		files.DiscSource(cfg.DiscRoot),
-		cfg.Disc.Backup.OutputDir,
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
+	if err != nil {
+		return err
+	}
+
+	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
+
+	out := os.Stdout
+	progressRenderer := terminal.NewProgressRenderer(out, terminal.DetectInteractiveOutput(out))
+	defer progressRenderer.Close()
+	backupRenderer := terminal.NewBackupSummaryRenderer(out)
+
+	if err := backupRenderer.Render(validatedBackupPlan); err != nil {
+		return err
+	}
+
+	return eng.BackupPlanDisc(
+		ctx,
+		validatedBackupPlan,
 		func(e event.Event) {
-			err := renderer.HandleEvent(e)
+			err := progressRenderer.HandleEvent(e)
 			if err != nil {
 				services.Logger.Warnw("renderer failed", "error", err)
 			}

@@ -41,6 +41,26 @@ func New(
 	}
 }
 
+// TODO: ScanDisc returns makemkv.DiscInfo, maybe this should be moved into model? The commands do not need to be aware of makemkv
+func (e *Engine) ScanDisc(ctx context.Context, discRoot string) (model.DiscIdentity, makemkv.DiscInfo, error) {
+	resolvedRoot, err := e.discResolver.ResolveDiscRoot(discRoot)
+	if err != nil {
+		return model.DiscIdentity{}, makemkv.DiscInfo{}, err
+	}
+
+	discInfo, err := e.makemkv.ReadDisc(ctx, resolvedRoot)
+	if err != nil {
+		return model.DiscIdentity{}, makemkv.DiscInfo{}, fmt.Errorf("unable to read disc titles with MakeMKV: %w", err)
+	}
+
+	identity := model.DiscIdentity{
+		DiscRoot: resolvedRoot,
+		Label:    discInfo.Label,
+	}
+
+	return identity, discInfo, nil
+}
+
 func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titles []model.TitlePlan) ([]model.TitlePlan, error) {
 	disc, err := e.makemkv.ReadDisc(ctx, source)
 	if err != nil {
@@ -60,6 +80,7 @@ func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titl
 		}
 
 		titlePlan.TitleId = title.TitleId
+		titlePlan.MakeMkvOutputFile = title.OutputFilename
 		resolved = append(resolved, titlePlan)
 	}
 	return resolved, nil

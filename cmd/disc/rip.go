@@ -6,14 +6,14 @@ package disc
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
-
-	"golang.org/x/term"
 
 	"m-macdonald/mkv-mapper/internal/app"
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/event"
+	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/terminal"
 	"m-macdonald/mkv-mapper/internal/util"
@@ -64,26 +64,31 @@ func runRip(cmd *cobra.Command, args []string) error {
 
 	eng := services.NewEngine(terminal.NewSelector())
 
-	interactive := detectInteractiveOutput(os.Stdout)
-	progressRenderer := terminal.NewProgressRenderer(os.Stdout, interactive)
-	defer progressRenderer.Close()
-	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
+	out := os.Stdout
+	renderers := newRenderers(out, terminal.DetectInteractiveOutput(out))
+	defer renderers.close()
 
 	onEvent := func(e event.Event) {
-		err := progressRenderer.HandleEvent(e)
+		err := renderers.progress.HandleEvent(e)
 		if err != nil {
 			services.Logger.Warnw("renderer failed", "error", err)
 		}
 	}
 
 	if cfg.Disc.Rip.Backup {
-		return runRipWithBackup(cmd, cfg, eng, onEvent, &previewRenderer)
+		return runRipWithBackup(cmd, cfg, eng, onEvent, renderers)
 	}
 
-	return runRipNoBackup(cmd, cfg, eng, onEvent, &previewRenderer)
+	return runRipNoBackup(cmd, cfg, eng, onEvent, renderers)
 }
 
-func runRipNoBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, onEvent engine.EngineEventSink, previewRenderer *terminal.PreviewRenderer) error {
+func runRipNoBackup(
+	cmd *cobra.Command,
+	cfg config.Config,
+	eng *engine.Engine,
+	onEvent engine.EngineEventSink,
+	renderers renderers,
+) error {
 	ctx := cmd.Context()
 
 	plan, err := buildPlan(ctx, eng, cfg, cfg.DiscRoot)
@@ -100,63 +105,54 @@ func runRipNoBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, o
 	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan, needed)}
 	validatedPlan := eng.ValidatePlan(ctx, selectedPlan, checks)
 
-	if err = previewRenderer.Render(validatedPlan); err != nil {
+	if err = renderers.preview.Render(validatedPlan); err != nil {
 		return err
 	}
 
 	return eng.RunPlan(ctx, validatedPlan, onEvent)
 }
 
-func runRipWithBackup(cmd *cobra.Command, cfg config.Config, eng *engine.Engine, onEvent engine.EngineEventSink, previewRenderer *terminal.PreviewRenderer) error {
+func runRipWithBackup(
+	cmd *cobra.Command,
+	cfg config.Config,
+	eng *engine.Engine,
+	onEvent engine.EngineEventSink,
+	renderers renderers,
+) error {
 	ctx := cmd.Context()
 
-	plan, err := buildPlan(ctx, eng, cfg, cfg.DiscRoot)
+	// Scan disc so that we can reuse the scan for plan and backupPlan construction.
+	// Slightly reduces wear on the disc by allowing us to scan only once.
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
 	if err != nil {
 		return err
 	}
 
-	selected, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
+
+	if err := renderers.backup.Render(validatedBackupPlan); err != nil {
+		return err
+	}
+
+	validatedPlan, err := planRip(ctx, cfg, eng, identity, discInfo)
 	if err != nil {
 		return err
 	}
 
-	needed := selected.SumTitleSizes()
-	// This is an intentional overestimation.
-	// It's possible (likely) that we are counting the size of some segments more than once.
-	// Better to overestimate than underestimate
-	backupSize := plan.SumTitleSizes()
-	checks := []validation.CheckGroup{
-		engine.RipChecks(selected, needed),
-		engine.BackupChecks(cfg.Disc.Backup.OutputDir, backupSize),
-	}
-	validatedPlan := eng.ValidatePlan(ctx, selected, checks)
-
-	if err = previewRenderer.Render(validatedPlan); err != nil {
+	if err = renderers.preview.Render(validatedPlan); err != nil {
 		return err
 	}
 
-	if err := eng.BackupPlanDisc(ctx, validatedPlan, cfg.Disc.Backup.OutputDir, onEvent); err != nil {
+	if err := eng.BackupPlanDisc(ctx, validatedBackupPlan, onEvent); err != nil {
 		return fmt.Errorf("backing up disc: %w", err)
 	}
 
-	ripPlan, err := buildPlan(ctx, eng, cfg, cfg.Disc.Backup.OutputDir)
+	validatedRipPlan, err := merge(ctx, eng, cfg, validatedPlan, validatedBackupPlan)
 	if err != nil {
 		return err
 	}
 
-	merged, err := ripPlan.MergeIntents(selected.Intents())
-	if err != nil {
-		return err
-	}
-
-	// re-executing validation checks again.
-	// This shouldn't be a problem, but if the checks ever become more expensive or add side-effects, this will need to be reworked.
-	needed = merged.SumTitleSizes()
-	mergedValidated := eng.ValidatePlan(ctx, merged, []validation.CheckGroup{
-		engine.RipChecks(merged, needed),
-	})
-
-	if err := eng.RunPlan(ctx, mergedValidated, onEvent); err != nil {
+	if err := eng.RunPlan(ctx, validatedRipPlan, onEvent); err != nil {
 		return err
 	}
 
@@ -173,7 +169,12 @@ func cleanupBackup(cfg config.Config) error {
 	return os.RemoveAll(cfg.Disc.Backup.OutputDir)
 }
 
-func buildPlan(ctx context.Context, eng *engine.Engine, cfg config.Config, discRoot string) (model.Plan, error) {
+func buildPlan(
+	ctx context.Context,
+	eng *engine.Engine,
+	cfg config.Config,
+	discRoot string,
+) (model.Plan, error) {
 	return eng.BuildPlan(ctx, engine.BuildPlanConfig{
 		OutputDir: cfg.OutputDir,
 		DiscRoot:  discRoot,
@@ -182,7 +183,106 @@ func buildPlan(ctx context.Context, eng *engine.Engine, cfg config.Config, discR
 	})
 }
 
-// TODO: Centralize this check when multiple commands are implemented
-func detectInteractiveOutput(out *os.File) bool {
-	return term.IsTerminal(int(out.Fd()))
+func planRip(
+	ctx context.Context,
+	cfg config.Config,
+	eng *engine.Engine,
+	identity model.DiscIdentity,
+	discInfo makemkv.DiscInfo,
+) (model.ValidatedPlan, error) {
+	planCfg := engine.BuildPlanConfig{
+		OutputDir: cfg.OutputDir,
+		DiscRoot:  cfg.DiscRoot,
+		Templates: cfg.Templates,
+		Rip:       cfg.Disc.Rip,
+	}
+	plan, err := eng.CompletePlan(ctx, identity, discInfo, planCfg)
+	if err != nil {
+		return model.ValidatedPlan{}, err
+	}
+
+	selected, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	if err != nil {
+		return model.ValidatedPlan{}, err
+	}
+
+	needed := selected.SumTitleSizes()
+	checks := []validation.CheckGroup{
+		engine.RipChecks(selected, needed),
+	}
+	return eng.ValidatePlan(ctx, selected, checks), nil
+}
+
+func validateBackupPlan(
+	ctx context.Context,
+	eng *engine.Engine,
+	plan model.BackupPlan,
+) model.ValidatedBackupPlan {
+	// This is an intentional overestimation.
+	// It's possible (likely) that we are counting the size of some segments more than once.
+	// Better to overestimate than underestimate
+	backupSize := plan.SumTitleSizes()
+	backupChecks := []validation.CheckGroup{
+		engine.BackupChecks(plan.OutputDir, backupSize),
+	}
+	return eng.ValidateBackupPlan(ctx, plan, backupChecks)
+}
+
+func planBackup(
+	ctx context.Context,
+	eng *engine.Engine,
+	cfg config.Config,
+	identity model.DiscIdentity,
+	discInfo makemkv.DiscInfo,
+) model.ValidatedBackupPlan {
+	backupCfg := engine.BuildBackupPlanConfig{
+		OutputDir:  cfg.Disc.Backup.OutputDir,
+		KeepBackup: cfg.Disc.Rip.KeepBackup,
+	}
+	backupPlan := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
+	return validateBackupPlan(ctx, eng, backupPlan)
+}
+
+func merge(
+	ctx context.Context,
+	eng *engine.Engine,
+	cfg config.Config,
+	validatedPlan model.ValidatedPlan,
+	validatedBackupPlan model.ValidatedBackupPlan,
+) (model.ValidatedPlan, error) {
+	plan, err := buildPlan(ctx, eng, cfg, validatedBackupPlan.OutputDir)
+	if err != nil {
+		return model.ValidatedPlan{}, err
+	}
+
+	merged, err := plan.MergeIntents(validatedPlan.Intents())
+	if err != nil {
+		return model.ValidatedPlan{}, err
+	}
+
+	// re-executing validation checks again.
+	// This shouldn't be a problem, but if the checks ever become more expensive or add side-effects, this will need to be reworked.
+	needed := merged.SumTitleSizes()
+	mergedValidatedPlan := eng.ValidatePlan(ctx, merged, []validation.CheckGroup{
+		engine.RipChecks(merged, needed),
+	})
+	return mergedValidatedPlan, nil
+}
+
+type renderers struct {
+	backup   terminal.BackupSummaryRenderer
+	preview  terminal.PreviewRenderer
+	progress terminal.ProgressRenderer
+}
+
+func newRenderers(out io.Writer, interactive bool) renderers {
+	return renderers{
+		backup:   terminal.NewBackupSummaryRenderer(out),
+		preview:  terminal.NewPreviewRenderer(out),
+		progress: *terminal.NewProgressRenderer(out, interactive),
+	}
+}
+
+func (r *renderers) close() error {
+	return r.progress.Close()
 }

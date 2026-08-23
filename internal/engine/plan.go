@@ -7,6 +7,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/files"
+	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/mapper"
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/naming"
@@ -20,28 +21,36 @@ type BuildPlanConfig struct {
 	Backup    config.BackupConfig
 }
 
+type planContent struct {
+	titles      []model.TitlePlan
+	buildReport model.BuildReport
+}
+
 func (e *Engine) BuildPlan(
 	ctx context.Context,
 	cfg BuildPlanConfig,
 ) (model.Plan, error) {
-	discRoot, err := e.discResolver.ResolveDiscRoot(cfg.DiscRoot)
+	identity, discInfo, err := e.ScanDisc(ctx, cfg.DiscRoot)
 	if err != nil {
 		return model.Plan{}, err
 	}
+	return e.CompletePlan(ctx, identity, discInfo, cfg)
+}
 
-	hash, err := files.Hash(discRoot)
+func (e *Engine) CompletePlan(
+	ctx context.Context,
+	identity model.DiscIdentity,
+	discInfo makemkv.DiscInfo,
+	cfg BuildPlanConfig,
+) (model.Plan, error) {
+	hash, err := files.Hash(identity.DiscRoot)
 	if err != nil {
-		return model.Plan{}, fmt.Errorf("unable to hash disc %w", err)
+		return model.Plan{}, fmt.Errorf("unable to hash disc: %w", err)
 	}
 
 	disc, err := e.discdb.LookupDisc(ctx, hash)
 	if err != nil {
-		return model.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB %w", err)
-	}
-
-	discInfo, err := e.makemkv.ReadDisc(ctx, discRoot)
-	if err != nil {
-		return model.Plan{}, fmt.Errorf("unable to read disc titles using MakeMkv %w", err)
+		return model.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB: %w", err)
 	}
 
 	mappings := mapper.MapTitles(disc, discInfo.Titles)
@@ -50,18 +59,18 @@ func (e *Engine) BuildPlan(
 	if err != nil {
 		return model.Plan{}, err
 	}
+
 	plan := model.Plan{
 		PlanBase: model.PlanBase{
+			DiscIdentity: identity,
 			MediaInfo: model.MediaInfo{
 				Title: disc.Media.Title,
 				Year:  disc.Media.Year,
 			},
-			Disc: model.Disc{
-				Label:  discInfo.Label,
+			DiscInfo: model.DiscInfo{
 				Format: disc.Disc.Format,
-				Hash:   disc.Disc.ContentHash,
+				Hash:   hash,
 			},
-			DiscRoot:  discRoot,
 			OutputDir: cfg.OutputDir,
 			Titles:    planContent.titles,
 		},
@@ -71,9 +80,30 @@ func (e *Engine) BuildPlan(
 	return plan, nil
 }
 
-type planContent struct {
-	titles      []model.TitlePlan
-	buildReport model.BuildReport
+type BuildBackupPlanConfig struct {
+	OutputDir  string
+	KeepBackup bool
+}
+
+func (e *Engine) CompleteBackupPlan(
+	identity model.DiscIdentity,
+	discInfo makemkv.DiscInfo,
+	cfg BuildBackupPlanConfig,
+) model.BackupPlan {
+	titles := make([]model.BackupTitle, 0, len(discInfo.Titles))
+	for _, title := range discInfo.Titles {
+		titles = append(titles, model.BackupTitle{
+			TitleId:       title.TitleId,
+			EstimatedSize: title.OutputFileSize,
+		})
+	}
+
+	return model.BackupPlan{
+		DiscIdentity: identity,
+		OutputDir:    cfg.OutputDir,
+		KeepBackup:   cfg.KeepBackup,
+		Titles:       titles,
+	}
 }
 
 func resolveFilenames(

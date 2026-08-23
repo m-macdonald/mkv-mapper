@@ -48,8 +48,8 @@ func (v *Report) HasErrors() bool {
 
 func (v *Report) filter(status Status) []Result {
 	var results []Result
-	for _, results := range v.ResultsByGroup {
-		for _, result := range results {
+	for _, groupResults := range v.ResultsByGroup {
+		for _, result := range groupResults {
 			if result.Status == status {
 				results = append(results, result)
 			}
