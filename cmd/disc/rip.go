@@ -13,6 +13,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/engine"
 	"m-macdonald/mkv-mapper/internal/event"
+	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/terminal"
@@ -159,17 +160,27 @@ func runRipWithBackup(
 		return err
 	}
 
-	return cleanupBackup(cfg)
+	return cleanupBackup(cfg, validatedPlan, validatedBackupPlan)
 }
 
-func cleanupBackup(cfg config.Config) error {
+func cleanupBackup(
+	cfg config.Config,
+	ripPlan model.ValidatedPlan,
+	backupPlan model.ValidatedBackupPlan,
+) error {
 	if cfg.Disc.Rip.KeepBackup {
 		return nil
 	}
-	if cfg.Disc.Backup.OutputDir == cfg.OutputDir {
-		return fmt.Errorf("refusing to delete backup directory, it is the same as the output directory")
+
+	unsafe, err := files.IsAncestorOrEqual(backupPlan.OutputDir, ripPlan.OutputDir)
+	if err != nil {
+		return err
 	}
-	return os.RemoveAll(cfg.Disc.Backup.OutputDir)
+	if unsafe {
+		return fmt.Errorf("refusing to delete backup directory %q, it is the same as, or a parent of, the output directory %q", backupPlan.OutputDir, ripPlan.OutputDir)
+	}
+
+	return os.RemoveAll(backupPlan.OutputDir)
 }
 
 func buildPlan(
