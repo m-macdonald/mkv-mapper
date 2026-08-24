@@ -116,11 +116,11 @@ func (e *Engine) CompleteBackupPlan(
 }
 
 func resolveBackupOutputDirectory(template string, discIdentity model.DiscIdentity) (string, error) {
-	directoryGen, err := naming.NewDirectoryGenerator(template)
+	directoryGen, err := naming.NewBackupOutputDirGenerator(template)
 	if err != nil {
 		return "", fmt.Errorf("resolving output directory: %w", err)
 	}
-	outputDir, err := directoryGen.GenerateBackup(naming.BackupDirectoryContext{
+	outputDir, err := directoryGen.Generate(naming.BackupDirectoryContext{
 		Label: discIdentity.Label,
 	})
 	if err != nil {
@@ -133,7 +133,7 @@ func resolveBackupOutputDirectory(template string, discIdentity model.DiscIdenti
 }
 
 func resolveRipOutputDirectory(template string, discRecord discdb.DiscRecord) (string, error) {
-	directoryGen, err := naming.NewDirectoryGenerator(template)
+	directoryGen, err := naming.NewRipOutputDirGenerator(template)
 	if err != nil {
 		return "", fmt.Errorf("resolving output directory: %w", err)
 	}

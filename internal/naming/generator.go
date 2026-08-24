@@ -5,150 +5,51 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
-
-	"m-macdonald/mkv-mapper/internal/config"
-	"m-macdonald/mkv-mapper/internal/discdb"
-	"m-macdonald/mkv-mapper/internal/makemkv"
-	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 )
 
-type filenameGenerator interface {
-	Generate(titleCtx TitleContext) (string, error)
+type generator[C any, V any] struct {
+	templates      *template.Template
+	buildVars      func(C) V
+	selectTemplate func(C) string
 }
 
-type FilenameGenerator struct {
-	templates *template.Template
-}
-
-type TitleContext struct {
-	DiscDbMedia  discdb.Media
-	DiscDbTitle  discdb.Title
-	DiscDbDisc   discdb.Disc
-	MakeMkvTitle makemkv.Title
-}
-
-func NewFilenameGenerator(templateConfig config.TemplateConfig) (*FilenameGenerator, error) {
-	rootTemplate := template.New("root").
+func newGenerator[C any, V any](
+	templates map[string]string,
+	buildVars func(C) V,
+	selectTemplate func(C) string,
+) (*generator[C, V], error) {
+	root := template.New("root").
 		Funcs(templateFuncs()).
 		Option("missingkey=error")
 
-	templates := map[templateType]string{
-		templateTypeMovie:   templateConfig.Movie,
-		templateTypeEpisode: templateConfig.Episode,
-		templateTypeExtra:   templateConfig.Extra,
-		templateTypeUnknown: templateConfig.Unknown,
-	}
-
-	if templateConfig.Override != "" {
-		templates[templateTypeOverride] = templateConfig.Override
-	}
-
-	for name, template := range templates {
-		if _, err := rootTemplate.New(string(name)).Parse(template); err != nil {
-			return nil, fmt.Errorf("parsing %s template: %w", name, err)
+	for name, tmplText := range templates {
+		if _, err := root.New(name).Parse(tmplText); err != nil {
+			return nil, fmt.Errorf("parsing %s to template: %w", name, err)
 		}
 	}
 
-	return &FilenameGenerator{templates: rootTemplate}, nil
+	return &generator[C, V]{templates: root, buildVars: buildVars, selectTemplate: selectTemplate}, nil
 }
 
-func (f *FilenameGenerator) Generate(titleCtx TitleContext) (string, error) {
-	templateType := templateTypeUnknown
-	if item, ok := titleCtx.DiscDbTitle.ItemValue(); ok {
-		templateType = templateTypeFromItemType(item.Type)
-	}
+func newSingleTemplateGenerator[C any, V any](
+	name string,
+	tmplText string,
+	buildVars func(C) V,
+) (*generator[C, V], error) {
+	return newGenerator(
+		map[string]string{name: tmplText},
+		buildVars,
+		func(C) string { return name },
+	)
+}
 
-	vars := buildTemplateVars(titleCtx)
-
-	if f.templates.Lookup(string(templateTypeOverride)) != nil {
-		templateType = templateTypeOverride
-	}
-
+func (g *generator[C, V]) Generate(ctx C) (string, error) {
+	name := g.selectTemplate(ctx)
 	var buf bytes.Buffer
-	err := f.templates.ExecuteTemplate(&buf, string(templateType), vars)
-	if err != nil {
-		return "", err
+	if err := g.templates.ExecuteTemplate(&buf, name, g.buildVars(ctx)); err != nil {
+		return "", fmt.Errorf("rendering %s template: %w", name, err)
 	}
-
 	return buf.String(), nil
-}
-
-type TemplateVars struct {
-	Media   TemplateMedia
-	Disc    TemplateDisc
-	Title   TemplateTitle
-	MakeMkv TemplateMakeMkvTitle
-
-	Season       string
-	Episode      string
-	EpisodeTitle string
-	MovieTitle   string
-}
-
-type TemplateMedia struct {
-	Title string
-	Year  int
-	Type  string
-}
-
-type TemplateDisc struct {
-	ContentHash string
-	Format      string
-	Name        string
-	Slug        string
-}
-
-type TemplateTitle struct {
-	DisplaySize string
-	Duration    string
-	SegmentMap  string
-	Size        uint64
-	SourceFile  string
-}
-
-type TemplateMakeMkvTitle struct {
-	TitleId        lines.TitleId
-	OutputFilename string
-	SourceFilename string
-	Segments       string
-	OutputFileSize uint64
-}
-
-func buildTemplateVars(titleCtx TitleContext) TemplateVars {
-	item, _ := titleCtx.DiscDbTitle.ItemValue()
-
-	return TemplateVars{
-		Media: TemplateMedia{
-			Title: titleCtx.DiscDbMedia.Title,
-			Year:  titleCtx.DiscDbMedia.Year,
-			Type:  titleCtx.DiscDbMedia.Type,
-		},
-		Disc: TemplateDisc{
-			ContentHash: titleCtx.DiscDbDisc.ContentHash,
-			Format:      titleCtx.DiscDbDisc.Format,
-			Name:        titleCtx.DiscDbDisc.Name,
-			Slug:        titleCtx.DiscDbDisc.Slug,
-		},
-		Title: TemplateTitle{
-			DisplaySize: titleCtx.DiscDbTitle.DisplaySize,
-			Duration:    titleCtx.DiscDbTitle.Duration,
-			SegmentMap:  titleCtx.DiscDbTitle.SegmentMap,
-			Size:        titleCtx.DiscDbTitle.Size,
-			SourceFile:  titleCtx.DiscDbTitle.SourceFile,
-		},
-		MakeMkv: TemplateMakeMkvTitle{
-			TitleId:        titleCtx.MakeMkvTitle.TitleId,
-			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
-			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
-			Segments:       string(titleCtx.MakeMkvTitle.Signature),
-			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
-		},
-
-		Season:       item.Season,
-		Episode:      item.Episode,
-		EpisodeTitle: item.Title,
-		MovieTitle:   item.Title,
-	}
 }
 
 func templateFuncs() template.FuncMap {

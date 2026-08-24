@@ -1,8 +1,6 @@
 package naming
 
 import (
-	"bytes"
-	"fmt"
 	"html/template"
 
 	"m-macdonald/mkv-mapper/internal/discdb"
@@ -34,45 +32,32 @@ type DirectoryGenerator struct {
 	template *template.Template
 }
 
-func NewDirectoryGenerator(dirTemplate string) (*DirectoryGenerator, error) {
-	root, err := template.New("root").
-		Funcs(templateFuncs()).
-		Option("missingkey=error").
-		Parse(dirTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("parsing directory template: %w", err)
-	}
-	return &DirectoryGenerator{template: root}, nil
+type OutputDirGenerator = generator[DirectoryContext, outputDirVars]
+
+func NewRipOutputDirGenerator(tmplText string) (*OutputDirGenerator, error) {
+	return newSingleTemplateGenerator("ripOutputDir", tmplText, func(ctx DirectoryContext) outputDirVars {
+		return outputDirVars{
+			Media: TemplateMedia{
+				Title: sanitizeSegment(ctx.Media.Title),
+				Year:  ctx.Media.Year,
+				Type:  ctx.Media.Type,
+			},
+			Disc: TemplateDisc{
+				ContentHash: ctx.Disc.ContentHash,
+				Format:      ctx.Disc.Format,
+				Name:        sanitizeSegment(ctx.Disc.Name),
+				Slug:        ctx.Disc.Slug,
+			},
+		}
+	})
 }
 
-func (g *DirectoryGenerator) Generate(ctx DirectoryContext) (string, error) {
-	vars := outputDirVars{
-		Media: TemplateMedia{
-			Title: sanitizeSegment(ctx.Media.Title),
-			Year:  ctx.Media.Year,
-		},
-		Disc: TemplateDisc{
-			ContentHash: ctx.Disc.ContentHash,
-			Format:      ctx.Disc.Format,
-			Name:        sanitizeSegment(ctx.Disc.Name),
-			Slug:        ctx.Disc.Slug,
-		},
-	}
+type BackupOutputDirGenerator = generator[BackupDirectoryContext, backupOutputDirVars]
 
-	return g.execute(vars)
-}
-
-func (g *DirectoryGenerator) GenerateBackup(ctx BackupDirectoryContext) (string, error) {
-	vars := backupOutputDirVars{
-		Disc: templateDiscIdentity{Label: ctx.Label},
-	}
-	return g.execute(vars)
-}
-
-func (g *DirectoryGenerator) execute(vars any) (string, error) {
-	var buf bytes.Buffer
-	if err := g.template.Execute(&buf, vars); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+func NewBackupOutputDirGenerator(tmplText string) (*BackupOutputDirGenerator, error) {
+	return newSingleTemplateGenerator("backupOutputDir", tmplText, func(ctx BackupDirectoryContext) backupOutputDirVars {
+		return backupOutputDirVars{
+			Disc: templateDiscIdentity{Label: sanitizeSegment(ctx.Label)},
+		}
+	})
 }
