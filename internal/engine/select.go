@@ -7,7 +7,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/model"
 )
 
-func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.Plan, error) {
+func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.RipPlan) (model.RipPlan, error) {
 	var selection model.Selection
 	var err error
 	switch mode {
@@ -18,17 +18,17 @@ func (e *Engine) SelectPlan(mode config.SelectionMode, plan model.Plan) (model.P
 	case config.ModeManual:
 		ids, err := e.selector.Select(plan)
 		if err != nil {
-			return model.Plan{}, err
+			return model.RipPlan{}, err
 		}
 		selection, err = model.SelectionFromIds(plan, mode, ids)
 		if err != nil {
-			return model.Plan{}, err
+			return model.RipPlan{}, err
 		}
 	default:
-		return model.Plan{}, fmt.Errorf("unknown selection mode: %v", mode)
+		return model.RipPlan{}, fmt.Errorf("unknown selection mode: %v", mode)
 	}
 	if err != nil {
-		return model.Plan{}, err
+		return model.RipPlan{}, err
 	}
 
 	return plan.ApplySelection(selection), nil

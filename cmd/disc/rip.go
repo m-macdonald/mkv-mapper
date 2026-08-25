@@ -92,7 +92,7 @@ func runRipNoBackup(
 ) error {
 	ctx := cmd.Context()
 
-	plan, err := buildPlan(ctx, eng, cfg, cfg.DiscRoot)
+	plan, err := buildRipPlan(ctx, eng, cfg, cfg.DiscRoot)
 	if err != nil {
 		return err
 	}
@@ -104,13 +104,13 @@ func runRipNoBackup(
 
 	needed := selectedPlan.SumTitleSizes()
 	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan, needed)}
-	validatedPlan := eng.ValidatePlan(ctx, selectedPlan, checks)
+	validatedPlan := eng.ValidateRipPlan(ctx, selectedPlan, checks)
 
 	if err = renderers.preview.Render(validatedPlan); err != nil {
 		return err
 	}
 
-	return eng.RunPlan(ctx, validatedPlan, onEvent)
+	return eng.RunRipPlan(ctx, validatedPlan, onEvent)
 }
 
 func runRipWithBackup(
@@ -156,7 +156,7 @@ func runRipWithBackup(
 		return err
 	}
 
-	if err := eng.RunPlan(ctx, validatedRipPlan, onEvent); err != nil {
+	if err := eng.RunRipPlan(ctx, validatedRipPlan, onEvent); err != nil {
 		return err
 	}
 
@@ -165,7 +165,7 @@ func runRipWithBackup(
 
 func cleanupBackup(
 	cfg config.Config,
-	ripPlan model.ValidatedPlan,
+	ripPlan model.ValidatedRipPlan,
 	backupPlan model.ValidatedBackupPlan,
 ) error {
 	if cfg.Disc.Rip.KeepBackup {
@@ -183,13 +183,13 @@ func cleanupBackup(
 	return os.RemoveAll(backupPlan.OutputDir)
 }
 
-func buildPlan(
+func buildRipPlan(
 	ctx context.Context,
 	eng *engine.Engine,
 	cfg config.Config,
 	discRoot string,
-) (model.Plan, error) {
-	return eng.BuildPlan(ctx, engine.BuildPlanConfig{
+) (model.RipPlan, error) {
+	return eng.BuildRipPlan(ctx, engine.BuildPlanConfig{
 		OutputDir: cfg.OutputDir,
 		DiscRoot:  discRoot,
 		Templates: cfg.Templates,
@@ -203,28 +203,28 @@ func planRip(
 	eng *engine.Engine,
 	identity model.DiscIdentity,
 	discInfo makemkv.DiscInfo,
-) (model.ValidatedPlan, error) {
+) (model.ValidatedRipPlan, error) {
 	planCfg := engine.BuildPlanConfig{
 		OutputDir: cfg.OutputDir,
 		DiscRoot:  cfg.DiscRoot,
 		Templates: cfg.Templates,
 		Rip:       cfg.Disc.Rip,
 	}
-	plan, err := eng.CompletePlan(ctx, identity, discInfo, planCfg)
+	plan, err := eng.CompleteRipPlan(ctx, identity, discInfo, planCfg)
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
 	selected, err := eng.SelectPlan(cfg.Disc.Mode, plan)
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
 	needed := selected.SumTitleSizes()
 	checks := []validation.CheckGroup{
 		engine.RipChecks(selected, needed),
 	}
-	return eng.ValidatePlan(ctx, selected, checks), nil
+	return eng.ValidateRipPlan(ctx, selected, checks), nil
 }
 
 func validateBackupPlan(
@@ -264,23 +264,23 @@ func merge(
 	ctx context.Context,
 	eng *engine.Engine,
 	cfg config.Config,
-	validatedPlan model.ValidatedPlan,
+	validatedRipPlan model.ValidatedRipPlan,
 	validatedBackupPlan model.ValidatedBackupPlan,
-) (model.ValidatedPlan, error) {
-	plan, err := buildPlan(ctx, eng, cfg, validatedBackupPlan.OutputDir)
+) (model.ValidatedRipPlan, error) {
+	plan, err := buildRipPlan(ctx, eng, cfg, validatedBackupPlan.OutputDir)
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
-	merged, err := plan.MergeIntents(validatedPlan.Intents())
+	merged, err := plan.MergeIntents(validatedRipPlan.Intents())
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
 	// re-executing validation checks again.
 	// This shouldn't be a problem, but if the checks ever become more expensive or add side-effects, this will need to be reworked.
 	needed := merged.SumTitleSizes()
-	mergedValidatedPlan := eng.ValidatePlan(ctx, merged, []validation.CheckGroup{
+	mergedValidatedPlan := eng.ValidateRipPlan(ctx, merged, []validation.CheckGroup{
 		engine.RipChecks(merged, needed),
 	})
 	return mergedValidatedPlan, nil

@@ -7,14 +7,14 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 )
 
-func (e *Engine) ValidatePlan(
+func (e *Engine) ValidateRipPlan(
 	ctx context.Context,
-	plan model.Plan,
+	plan model.RipPlan,
 	checkGroups []validation.CheckGroup,
-) model.ValidatedPlan {
+) model.ValidatedRipPlan {
 	report := validation.Run(ctx, checkGroups)
-	return model.ValidatedPlan{
-		PlanBase:         plan.PlanBase,
+	return model.ValidatedRipPlan{
+		RipPlanBase:      plan.RipPlanBase,
 		BuildReport:      plan.BuildReport,
 		ValidationReport: report,
 		IsAllTitles:      plan.IsAllTitles,

@@ -12,16 +12,16 @@ type DiscIdentity struct {
 	Label    string
 }
 
-type PlanBase struct {
+type RipPlanBase struct {
 	DiscIdentity
 	MediaInfo MediaInfo
 	DiscInfo  DiscInfo
 	Format    string
 	OutputDir string
-	Titles    []TitlePlan
+	Titles    []TitleRipPlan
 }
 
-func (p PlanBase) SumTitleSizes() uint64 {
+func (p RipPlanBase) SumTitleSizes() uint64 {
 	var total uint64
 	for _, title := range p.Titles {
 		total += title.EstimatedSize
@@ -29,7 +29,7 @@ func (p PlanBase) SumTitleSizes() uint64 {
 	return total
 }
 
-func (p PlanBase) Intents() []TitleIntent {
+func (p RipPlanBase) Intents() []TitleIntent {
 	intents := make([]TitleIntent, 0, len(p.Titles))
 	for _, title := range p.Titles {
 		intents = append(intents, TitleIntent{
@@ -67,33 +67,33 @@ const (
 	WarningNoMetadata WarningCode = "no_metadata"
 )
 
-type Plan struct {
-	PlanBase
+type RipPlan struct {
+	RipPlanBase
 	BuildReport BuildReport
 	// Indicates if the Plan contains all of the titles that makemkv discovered
 	IsAllTitles bool
 }
 
-func NewPlan(base PlanBase, report BuildReport) Plan {
-	return Plan{
-		PlanBase:    base,
+func NewRipPlan(base RipPlanBase, report BuildReport) RipPlan {
+	return RipPlan{
+		RipPlanBase:    base,
 		BuildReport: report,
 		// Newly constructed plans always have every title
 		IsAllTitles: true,
 	}
 }
 
-func (p Plan) ApplySelection(selection Selection) Plan {
-	updatedBase := p.PlanBase
+func (p RipPlan) ApplySelection(selection Selection) RipPlan {
+	updatedBase := p.RipPlanBase
 	updatedBase.Titles = selection.Selected
 
-	selected := NewPlan(updatedBase, p.BuildReport)
+	selected := NewRipPlan(updatedBase, p.BuildReport)
 	selected.IsAllTitles = len(p.Titles) == len(selection.Selected)
 
 	return selected
 }
 
-type TitlePlan struct {
+type TitleRipPlan struct {
 	TitleId           lines.TitleId
 	SourcePlaylist    string
 	SegmentSignature  signature.SegmentSignature
@@ -109,16 +109,16 @@ type TitleIntent struct {
 	FinalName string
 }
 
-func (p Plan) MergeIntents(intents []TitleIntent) (Plan, error) {
+func (p RipPlan) MergeIntents(intents []TitleIntent) (RipPlan, error) {
 	bySignature := groupTitleIntentBySignature(intents)
-	matched := filterTitles(p.Titles, func(tp TitlePlan) bool {
+	matched := filterTitles(p.Titles, func(tp TitleRipPlan) bool {
 		_, ok := bySignature[tp.SegmentSignature]
 		return ok
 	})
 	if len(matched) != len(intents) {
-		return Plan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(matched), len(intents))
+		return RipPlan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(matched), len(intents))
 	}
-	titles := make([]TitlePlan, 0, len(matched))
+	titles := make([]TitleRipPlan, 0, len(matched))
 	for _, t := range matched {
 		t.FinalName = bySignature[t.SegmentSignature].FinalName
 		titles = append(titles, t)

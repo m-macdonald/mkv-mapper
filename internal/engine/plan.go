@@ -22,50 +22,50 @@ type BuildPlanConfig struct {
 }
 
 type planContent struct {
-	titles      []model.TitlePlan
+	titles      []model.TitleRipPlan
 	buildReport model.BuildReport
 }
 
-func (e *Engine) BuildPlan(
+func (e *Engine) BuildRipPlan(
 	ctx context.Context,
 	cfg BuildPlanConfig,
-) (model.Plan, error) {
+) (model.RipPlan, error) {
 	identity, discInfo, err := e.ScanDisc(ctx, cfg.DiscRoot)
 	if err != nil {
-		return model.Plan{}, err
+		return model.RipPlan{}, err
 	}
-	return e.CompletePlan(ctx, identity, discInfo, cfg)
+	return e.CompleteRipPlan(ctx, identity, discInfo, cfg)
 }
 
-func (e *Engine) CompletePlan(
+func (e *Engine) CompleteRipPlan(
 	ctx context.Context,
 	identity model.DiscIdentity,
 	discInfo makemkv.DiscInfo,
 	cfg BuildPlanConfig,
-) (model.Plan, error) {
+) (model.RipPlan, error) {
 	hash, err := files.Hash(identity.DiscRoot)
 	if err != nil {
-		return model.Plan{}, fmt.Errorf("unable to hash disc: %w", err)
+		return model.RipPlan{}, fmt.Errorf("unable to hash disc: %w", err)
 	}
 
 	disc, err := e.discdb.LookupDisc(ctx, hash)
 	if err != nil {
-		return model.Plan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB: %w", err)
+		return model.RipPlan{}, fmt.Errorf("failed to retrieve disc definitions from TheDiscDB: %w", err)
 	}
 
 	mappings := mapper.MapTitles(disc, discInfo.Titles)
 	planContent, err := resolveFilenames(cfg.Templates, mappings, disc)
 	if err != nil {
-		return model.Plan{}, err
+		return model.RipPlan{}, err
 	}
 
 	outputDir, err := resolveRipOutputDirectory(cfg.OutputDir, disc)
 	if err != nil {
-		return model.Plan{}, err
+		return model.RipPlan{}, err
 	}
 
-	plan := model.Plan{
-		PlanBase: model.PlanBase{
+	plan := model.RipPlan{
+		RipPlanBase: model.RipPlanBase{
 			DiscIdentity: identity,
 			MediaInfo: model.MediaInfo{
 				Title: disc.Media.Title,
@@ -196,7 +196,7 @@ func resolveFilenames(
 			})
 		}
 
-		content.titles = append(content.titles, model.TitlePlan{
+		content.titles = append(content.titles, model.TitleRipPlan{
 			TitleId:           mapping.MakeMkvTitle.TitleId,
 			SourcePlaylist:    mapping.MakeMkvTitle.SourceFilename,
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,

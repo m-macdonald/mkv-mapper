@@ -16,7 +16,7 @@ func NewSelector() Selector {
 	return Selector{}
 }
 
-func (Selector) Select(plan model.Plan) ([]lines.TitleId, error) {
+func (Selector) Select(plan model.RipPlan) ([]lines.TitleId, error) {
 	if len(plan.Titles) == 0 {
 		return nil, fmt.Errorf("no titles available to select from")
 	}
@@ -45,7 +45,7 @@ func (Selector) Select(plan model.Plan) ([]lines.TitleId, error) {
 	return ids, nil
 }
 
-func formatTitleLabel(title model.TitlePlan) string {
+func formatTitleLabel(title model.TitleRipPlan) string {
 	matched := ""
 	if title.IsMatched {
 		matched = " [matched]"
@@ -61,7 +61,7 @@ type titleOption struct {
 
 type titleOptions []titleOption
 
-func newTitleOptions(titles []model.TitlePlan) titleOptions {
+func newTitleOptions(titles []model.TitleRipPlan) titleOptions {
 	opts := make(titleOptions, 0, len(titles))
 	for _, title := range titles {
 		opts = append(opts, titleOption{id: title.TitleId, label: formatTitleLabel(title)})

@@ -10,9 +10,9 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 )
 
-func (e *Engine) RunPlan(
+func (e *Engine) RunRipPlan(
 	ctx context.Context,
-	plan model.ValidatedPlan,
+	plan model.ValidatedRipPlan,
 	onEvent EngineEventSink,
 ) error {
 	if err := plan.Err(); err != nil {
@@ -62,7 +62,7 @@ func (e *Engine) ripSelected(
 	ctx context.Context,
 	ripSource string,
 	outputDir string,
-	titles []model.TitlePlan,
+	titles []model.TitleRipPlan,
 	onEvent EngineEventSink,
 ) error {
 	for _, title := range titles {
@@ -83,7 +83,7 @@ func (e *Engine) ripSelected(
 	return nil
 }
 
-func RipChecks(plan model.Plan, estimatedBytes uint64) validation.CheckGroup {
+func RipChecks(plan model.RipPlan, estimatedBytes uint64) validation.CheckGroup {
 	targets := make([]validation.FilenameTarget, 0, len(plan.Titles))
 	for _, title := range plan.Titles {
 		targets = append(targets, validation.FilenameTarget{

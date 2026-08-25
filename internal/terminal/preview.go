@@ -21,8 +21,8 @@ func NewPreviewRenderer(out io.Writer) PreviewRenderer {
 	}
 }
 
-func (p *PreviewRenderer) Render(plan model.ValidatedPlan) error {
-	view := preview.BuildPlanView(plan)
+func (p *PreviewRenderer) Render(plan model.ValidatedRipPlan) error {
+	view := preview.BuildRipPlanView(plan)
 
 	if err := p.renderHeader(view); err != nil {
 		return err
@@ -39,7 +39,7 @@ func (p *PreviewRenderer) Render(plan model.ValidatedPlan) error {
 	return nil
 }
 
-func (p *PreviewRenderer) renderHeader(view preview.PlanView) error {
+func (p *PreviewRenderer) renderHeader(view preview.RipPlanView) error {
 	title := pterm.NewStyle(pterm.Bold).Sprintf("%s (%d) - %s", view.DiscName, view.Year, view.Format)
 	hash := pterm.NewStyle(pterm.FgGray).Sprintf("Hash: %s", view.Hash)
 
@@ -47,7 +47,7 @@ func (p *PreviewRenderer) renderHeader(view preview.PlanView) error {
 	return err
 }
 
-func (p *PreviewRenderer) renderTitles(view preview.PlanView) error {
+func (p *PreviewRenderer) renderTitles(view preview.RipPlanView) error {
 	if _, err := fmt.Fprintf(p.out, "Titles:\n"); err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (p *PreviewRenderer) renderTitles(view preview.PlanView) error {
 	return p.renderUnmatched(view)
 }
 
-func (p *PreviewRenderer) renderTitle(titleView preview.TitleView) error {
+func (p *PreviewRenderer) renderTitle(titleView preview.TitleRipPlanView) error {
 	_, err := fmt.Fprintf(
 		p.out,
 		"  %s → %s (%s)\n",
@@ -82,7 +82,7 @@ func (p *PreviewRenderer) renderTitle(titleView preview.TitleView) error {
 	return nil
 }
 
-func (p *PreviewRenderer) renderValidation(view preview.PlanView) error {
+func (p *PreviewRenderer) renderValidation(view preview.RipPlanView) error {
 	for _, group := range view.CheckGroups {
 		if err := renderCheckResults(p.out, group.Label, group.Results); err != nil {
 			return err
@@ -92,7 +92,7 @@ func (p *PreviewRenderer) renderValidation(view preview.PlanView) error {
 	return nil
 }
 
-func (p *PreviewRenderer) renderUnmatched(view preview.PlanView) error {
+func (p *PreviewRenderer) renderUnmatched(view preview.RipPlanView) error {
 	if len(view.Unmatched) == 0 {
 		return nil
 	}

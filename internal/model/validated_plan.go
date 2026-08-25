@@ -5,14 +5,14 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 )
 
-type ValidatedPlan struct {
-	PlanBase
+type ValidatedRipPlan struct {
+	RipPlanBase
 	BuildReport      BuildReport
 	IsAllTitles      bool
 	ValidationReport validation.Report
 }
 
-func (v ValidatedPlan) Err() error {
+func (v ValidatedRipPlan) Err() error {
 	if v.ValidationReport.HasErrors() {
 		return fmt.Errorf("plan has validation errors")
 	}

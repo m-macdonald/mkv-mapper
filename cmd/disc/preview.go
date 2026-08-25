@@ -39,7 +39,7 @@ func runPreview(cmd *cobra.Command, args []string) error {
 
 	eng := services.NewEngine(terminal.NewSelector())
 
-	plan, err := eng.BuildPlan(
+	plan, err := eng.BuildRipPlan(
 		cmd.Context(),
 		engine.BuildPlanConfig{
 			OutputDir: cfg.OutputDir,
@@ -60,7 +60,7 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	checkGroups := []validation.CheckGroup{
 		engine.RipChecks(selectedPlan, selectedPlan.SumTitleSizes()),
 	}
-	validatedPlan := eng.ValidatePlan(cmd.Context(), selectedPlan, checkGroups)
+	validatedPlan := eng.ValidateRipPlan(cmd.Context(), selectedPlan, checkGroups)
 
 	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
 	if err := previewRenderer.Render(validatedPlan); err != nil {

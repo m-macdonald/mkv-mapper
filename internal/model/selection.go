@@ -9,7 +9,7 @@ import (
 
 type Selection struct {
 	Mode     config.SelectionMode
-	Selected []TitlePlan
+	Selected []TitleRipPlan
 }
 
 func (s Selection) IsSelected(id lines.TitleId) bool {
@@ -21,22 +21,22 @@ func (s Selection) IsSelected(id lines.TitleId) bool {
 	return false
 }
 
-func FullSelection(plan Plan) Selection {
-	titles := filterTitles(plan.Titles, func(tp TitlePlan) bool { return true })
+func FullSelection(plan RipPlan) Selection {
+	titles := filterTitles(plan.Titles, func(tp TitleRipPlan) bool { return true })
 	return Selection{Mode: config.ModeFullAuto, Selected: titles}
 }
 
-func TrimmedSelection(plan Plan) Selection {
-	titles := filterTitles(plan.Titles, func(tp TitlePlan) bool { return tp.IsMatched })
+func TrimmedSelection(plan RipPlan) Selection {
+	titles := filterTitles(plan.Titles, func(tp TitleRipPlan) bool { return tp.IsMatched })
 	return Selection{Mode: config.ModeTrimmedAuto, Selected: titles}
 }
 
-func SelectionFromIds(plan Plan, mode config.SelectionMode, ids []lines.TitleId) (Selection, error) {
-	titlesById := make(map[lines.TitleId]TitlePlan, len(plan.Titles))
+func SelectionFromIds(plan RipPlan, mode config.SelectionMode, ids []lines.TitleId) (Selection, error) {
+	titlesById := make(map[lines.TitleId]TitleRipPlan, len(plan.Titles))
 	for _, title := range plan.Titles {
 		titlesById[title.TitleId] = title
 	}
-	titles := make([]TitlePlan, 0, len(ids))
+	titles := make([]TitleRipPlan, 0, len(ids))
 	for _, id := range ids {
 		title, ok := titlesById[id]
 		if !ok {
@@ -47,8 +47,8 @@ func SelectionFromIds(plan Plan, mode config.SelectionMode, ids []lines.TitleId)
 	return Selection{Mode: mode, Selected: titles}, nil
 }
 
-func filterTitles(titles []TitlePlan, keep func(TitlePlan) bool) []TitlePlan {
-	var kept []TitlePlan
+func filterTitles(titles []TitleRipPlan, keep func(TitleRipPlan) bool) []TitleRipPlan {
+	var kept []TitleRipPlan
 	for _, title := range titles {
 		if keep(title) {
 			kept = append(kept, title)
