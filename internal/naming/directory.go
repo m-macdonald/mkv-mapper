@@ -28,10 +28,6 @@ type templateDiscIdentity struct {
 	Label string
 }
 
-type DirectoryGenerator struct {
-	template *template.Template
-}
-
 type OutputDirGenerator = generator[DirectoryContext, outputDirVars]
 
 func NewRipOutputDirGenerator(tmplText string) (*OutputDirGenerator, error) {
