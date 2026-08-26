@@ -29,6 +29,8 @@ const (
 	keepBackup = "keep-backup"
 )
 
+var dfltMode = config.DefaultConfig().Disc.Rip.Mode
+
 var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
@@ -38,10 +40,12 @@ var ripCmd = &cobra.Command{
 		if backupFlag != nil && backupFlag.Changed {
 			viper.Set(config.DiscRipBackup, true)
 			if o, ok := backupFlag.Value.(*util.OptionalString); ok && !o.WasEmpty {
-				viper.Set(config.DiscBackupOutputDir, backupFlag.Value.String())
+				viper.Set(config.DiscBackupOutputDirTemplate, backupFlag.Value.String())
 			}
 		}
 		viper.BindPFlag(config.DiscRipBackupKeep, cmd.Flags().Lookup(keepBackup))
+		viper.BindPFlag(config.DiscRipOutputDirTemplate, cmd.Flags().Lookup(outputDir))
+		viper.BindPFlag(config.DiscRipMode, cmd.Flags().Lookup(mode))
 	},
 	RunE: runRip,
 }
@@ -50,6 +54,8 @@ func init() {
 	Cmd.AddCommand(ripCmd)
 	util.RegisterOptionalStringFlag(ripCmd.Flags(), backup, fmt.Sprintf("Backup disc before ripping (Optionally, specify a different destination for the backup: --%s={target dir})", backup))
 	ripCmd.Flags().Bool(keepBackup, false, "Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
+	ripCmd.Flags().String(outputDir, "", "Output directory")
+	ripCmd.Flags().Var(&dfltMode, mode, "Mode to execute in")
 }
 
 func runRip(cmd *cobra.Command, args []string) error {
@@ -92,12 +98,12 @@ func runRipNoBackup(
 ) error {
 	ctx := cmd.Context()
 
-	plan, err := buildRipPlan(ctx, eng, cfg, cfg.DiscRoot)
+	plan, err := buildRipPlan(ctx, eng, cfg, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
 
-	selectedPlan, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	selectedPlan, err := eng.SelectPlan(cfg.Disc.Rip.Mode, plan)
 	if err != nil {
 		return err
 	}
@@ -124,7 +130,7 @@ func runRipWithBackup(
 
 	// Scan disc so that we can reuse the scan for plan and backupPlan construction.
 	// Slightly reduces wear on the disc by allowing us to scan only once.
-	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
@@ -147,7 +153,7 @@ func runRipWithBackup(
 		return err
 	}
 
-	if err := eng.BackupPlanDisc(ctx, validatedBackupPlan, onEvent); err != nil {
+	if err := eng.RunBackupPlan(ctx, validatedBackupPlan, onEvent); err != nil {
 		return fmt.Errorf("backing up disc: %w", err)
 	}
 
@@ -189,8 +195,7 @@ func buildRipPlan(
 	cfg config.Config,
 	discRoot string,
 ) (model.RipPlan, error) {
-	return eng.BuildRipPlan(ctx, engine.BuildPlanConfig{
-		OutputDir: cfg.OutputDir,
+	return eng.BuildRipPlan(ctx, engine.BuildRipPlanConfig{
 		DiscRoot:  discRoot,
 		Templates: cfg.Templates,
 		Rip:       cfg.Disc.Rip,
@@ -204,9 +209,8 @@ func planRip(
 	identity model.DiscIdentity,
 	discInfo makemkv.DiscInfo,
 ) (model.ValidatedRipPlan, error) {
-	planCfg := engine.BuildPlanConfig{
-		OutputDir: cfg.OutputDir,
-		DiscRoot:  cfg.DiscRoot,
+	planCfg := engine.BuildRipPlanConfig{
+		DiscRoot:  cfg.Disc.Root,
 		Templates: cfg.Templates,
 		Rip:       cfg.Disc.Rip,
 	}
@@ -215,7 +219,7 @@ func planRip(
 		return model.ValidatedRipPlan{}, err
 	}
 
-	selected, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	selected, err := eng.SelectPlan(cfg.Disc.Rip.Mode, plan)
 	if err != nil {
 		return model.ValidatedRipPlan{}, err
 	}
@@ -250,8 +254,8 @@ func planBackup(
 	discInfo makemkv.DiscInfo,
 ) (model.ValidatedBackupPlan, error) {
 	backupCfg := engine.BuildBackupPlanConfig{
-		OutputDir:  cfg.Disc.Backup.OutputDir,
-		KeepBackup: cfg.Disc.Rip.KeepBackup,
+		OutputDirTemplate: cfg.Disc.Backup.OutputDirTemplate,
+		KeepBackup:        cfg.Disc.Rip.KeepBackup,
 	}
 	backupPlan, err := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
 	if err != nil {

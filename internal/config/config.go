@@ -11,44 +11,44 @@ import (
 )
 
 const (
-	CachePath           = "cachePath"
-	ConfigFilename      = "config"
-	DiscBackupOutputDir = "disc.backup.outputDir"
-	DiscRipBackup       = "disc.rip.backup"
-	DiscRipBackupKeep   = "disc.rip.keepBackup"
-	DiscMode            = "disc.mode"
-	DiscRoot            = "discRoot"
-	EnvPrefix           = "MKVMAP"
-	LogLevel            = "logLevel"
-	MakeMkvPath         = "makemkvPath"
-	OutputDir           = "outputDir"
-	ProgramDirname      = "mkv-mapper"
-	TemplateOverride    = "templates.override"
+	CachePath                   = "cachePath"
+	ConfigFilename              = "config"
+	DiscBackupOutputDirTemplate = "disc.backup.outputDirTemplate"
+	DiscRipBackup               = "disc.rip.backup"
+	DiscRipBackupKeep           = "disc.rip.keepBackup"
+	DiscRipMode                 = "disc.rip.mode"
+	DiscRipOutputDirTemplate    = "disc.rip.outputDirTemplate"
+	DiscRoot                    = "disc.root"
+	EnvPrefix                   = "MKVMAP"
+	LogLevel                    = "logLevel"
+	MakeMkvPath                 = "makemkvPath"
+	ProgramDirname              = "mkv-mapper"
+	TemplateOverride            = "templates.override"
 )
 
 type Config struct {
 	CachePath   string         `mapstructure:"cachePath"`
-	DiscRoot    string         `mapstructure:"discRoot"`
 	LogLevel    string         `mapstructure:"logLevel"`
 	MakeMkvPath string         `mapstructure:"makemkvPath"`
-	OutputDir   string         `mapstructure:"outputDir"`
 	Templates   TemplateConfig `mapstructure:"templates"`
 	Disc        DiscConfig     `mapstructure:"disc"`
 }
 
 type DiscConfig struct {
-	Mode   SelectionMode `mapstructure:"mode"`
-	Backup BackupConfig  `mapstructure:"backup"`
-	Rip    RipConfig     `mapstructure:"rip"`
+	Backup BackupConfig `mapstructure:"backup"`
+	Rip    RipConfig    `mapstructure:"rip"`
+	Root   string       `mapstructure:"root"`
 }
 
 type RipConfig struct {
-	Backup     bool `mapstructure:"backup"`
-	KeepBackup bool `mapstructure:"keepBackup"`
+	Backup            bool          `mapstructure:"backup"`
+	KeepBackup        bool          `mapstructure:"keepBackup"`
+	Mode              SelectionMode `mapstructure:"mode"`
+	OutputDirTemplate string        `mapstructure:"outputDirTemplate"`
 }
 
 type BackupConfig struct {
-	OutputDir string `mapstructure:"outputDir"`
+	OutputDirTemplate string `mapstructure:"outputDirTemplate"`
 }
 
 type TemplateConfig struct {
@@ -62,11 +62,9 @@ type TemplateConfig struct {
 func DefaultConfig() Config {
 	return Config{
 		CachePath: "",
-		DiscRoot: "",
-		LogLevel: "info",
+		LogLevel:  "info",
 		// Assume makemkvcon is on the path
 		MakeMkvPath: "makemkvcon",
-		OutputDir: "~/Videos/{{.Disc.Label}}",
 		Templates: TemplateConfig{
 			Movie:   "{{.Media.Title}} ({{.Disc.Year}})",
 			Episode: "{{.Media.Title}}/Season {{.Item.Season}}/{{.Disc.SeriesTitle}} - S{{pad 2 .Item.Season}}E{{.Item.Episode}} - {{.Item.Title}}",
@@ -74,9 +72,12 @@ func DefaultConfig() Config {
 			Unknown: "{{.MakeMkv.OutputFileName}}",
 		},
 		Disc: DiscConfig{
-			Mode: ModeFullAuto,
 			Backup: BackupConfig{
-				OutputDir: "~/Videos/backup/{{.Disc.Label}}",
+				OutputDirTemplate: "~/Videos/backup/{{.Disc.Label}}",
+			},
+			Rip: RipConfig{
+				Mode:              ModeFullAuto,
+				OutputDirTemplate: "~/Videos/{{.Disc.Label}}",
 			},
 		},
 	}
@@ -103,10 +104,6 @@ func mergeConfig(base Config, user Config) Config {
 		result.CachePath = user.CachePath
 	}
 
-	if user.DiscRoot != "" {
-		result.DiscRoot = user.DiscRoot
-	}
-
 	if user.LogLevel != "" {
 		result.LogLevel = user.LogLevel
 	}
@@ -115,9 +112,9 @@ func mergeConfig(base Config, user Config) Config {
 		result.MakeMkvPath = user.MakeMkvPath
 	}
 
-	if user.OutputDir != "" {
-		result.OutputDir = user.OutputDir
-	}
+	// if user.OutputDirTemplate != "" {
+	// 	result.OutputDir = user.OutputDir
+	// }
 
 	result.Templates = mergeTemplates(base.Templates, user.Templates)
 	result.Disc = mergeDisc(base.Disc, user.Disc)
@@ -128,9 +125,10 @@ func mergeConfig(base Config, user Config) Config {
 func mergeDisc(base DiscConfig, user DiscConfig) DiscConfig {
 	result := base
 
-	if user.Mode != "" {
-		result.Mode = user.Mode
+	if user.Root != "" {
+		result.Root = user.Root
 	}
+
 	result.Backup = mergeBackup(base.Backup, user.Backup)
 	result.Rip = mergeRip(base.Rip, user.Rip)
 
@@ -143,14 +141,18 @@ func mergeRip(base RipConfig, user RipConfig) RipConfig {
 	result.Backup = user.Backup
 	result.KeepBackup = user.KeepBackup
 
+	if user.OutputDirTemplate != "" {
+		result.OutputDirTemplate = user.OutputDirTemplate
+	}
+
 	return result
 }
 
 func mergeBackup(base BackupConfig, user BackupConfig) BackupConfig {
 	result := base
 
-	if user.OutputDir != "" {
-		result.OutputDir = user.OutputDir
+	if user.OutputDirTemplate != "" {
+		result.OutputDirTemplate = user.OutputDirTemplate
 	}
 
 	return result
@@ -198,7 +200,7 @@ func finalizeConfig(config Config) (Config, error) {
 		return Config{}, err
 	}
 
-	result.DiscRoot, err = resolveAbsPath(result.DiscRoot)
+	result.Disc.Root, err = resolveAbsPath(result.Disc.Root)
 	if err != nil {
 		return Config{}, err
 	}
@@ -208,12 +210,12 @@ func finalizeConfig(config Config) (Config, error) {
 		return Config{}, err
 	}
 
-	result.OutputDir, err = resolveAbsPath(result.OutputDir)
+	result.Disc.Rip.OutputDirTemplate, err = resolveAbsPath(result.Disc.Rip.OutputDirTemplate)
 	if err != nil {
 		return Config{}, err
 	}
 
-	result.Disc.Backup.OutputDir, err = resolveAbsPath(result.Disc.Backup.OutputDir)
+	result.Disc.Backup.OutputDirTemplate, err = resolveAbsPath(result.Disc.Backup.OutputDirTemplate)
 	if err != nil {
 		return Config{}, err
 	}

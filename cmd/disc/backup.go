@@ -24,7 +24,7 @@ func init() {
 	backupCmd.Flags().String(discRoot, "", "Disc root")
 	backupCmd.Flags().String(outputDir, "", "Directory to back up the disc into")
 	viper.BindPFlag(config.DiscRoot, backupCmd.Flags().Lookup(discRoot))
-	viper.BindPFlag(config.DiscBackupOutputDir, backupCmd.Flags().Lookup(outputDir))
+	viper.BindPFlag(config.DiscBackupOutputDirTemplate, backupCmd.Flags().Lookup(outputDir))
 }
 
 func runBackup(cmd *cobra.Command, args []string) error {
@@ -40,7 +40,7 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	}
 	eng := services.NewEngine(terminal.NewSelector())
 
-	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func runBackup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return eng.BackupPlanDisc(
+	return eng.RunBackupPlan(
 		ctx,
 		validatedBackupPlan,
 		func(e event.Event) {

@@ -41,18 +41,17 @@ func runPreview(cmd *cobra.Command, args []string) error {
 
 	plan, err := eng.BuildRipPlan(
 		cmd.Context(),
-		engine.BuildPlanConfig{
-			OutputDir: cfg.OutputDir,
-			DiscRoot:  cfg.DiscRoot,
-			Templates: cfg.Templates,
-			Rip:       cfg.Disc.Rip,
+		engine.BuildRipPlanConfig{
+			DiscRoot:          cfg.Disc.Root,
+			Templates:         cfg.Templates,
+			Rip:               cfg.Disc.Rip,
 		},
 	)
 	if err != nil {
 		return err
 	}
 
-	selectedPlan, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	selectedPlan, err := eng.SelectPlan(cfg.Disc.Rip.Mode, plan)
 	if err != nil {
 		return err
 	}

@@ -121,7 +121,7 @@ func TestTitleOptions(t *testing.T) {
 		if opt.label != expectedLabel {
 			t.Errorf("option %d label = %q, want %q", i, opt.label, expectedLabel)
 		}
-		if opt.id != titles[i].TitleId {
+		if opt.titleId != titles[i].TitleId {
 			t.Errorf("option %d id = %d, want %d", i, opt.id, titles[i].TitleId)
 		}
 	}
