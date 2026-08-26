@@ -54,8 +54,12 @@ func (e *Engine) CompletePlan(
 	}
 
 	mappings := mapper.MapTitles(disc, discInfo.Titles)
-
 	planContent, err := resolveFilenames(cfg.Templates, mappings, disc)
+	if err != nil {
+		return model.Plan{}, err
+	}
+
+	outputDir, err := resolveRipOutputDirectory(cfg.OutputDir, disc)
 	if err != nil {
 		return model.Plan{}, err
 	}
@@ -71,7 +75,7 @@ func (e *Engine) CompletePlan(
 				Format: disc.Disc.Format,
 				Hash:   hash,
 			},
-			OutputDir: cfg.OutputDir,
+			OutputDir: outputDir,
 			Titles:    planContent.titles,
 		},
 		BuildReport: planContent.buildReport,
@@ -89,7 +93,7 @@ func (e *Engine) CompleteBackupPlan(
 	identity model.DiscIdentity,
 	discInfo makemkv.DiscInfo,
 	cfg BuildBackupPlanConfig,
-) model.BackupPlan {
+) (model.BackupPlan, error) {
 	titles := make([]model.BackupTitle, 0, len(discInfo.Titles))
 	for _, title := range discInfo.Titles {
 		titles = append(titles, model.BackupTitle{
@@ -98,12 +102,52 @@ func (e *Engine) CompleteBackupPlan(
 		})
 	}
 
+	outputDir, err := resolveBackupOutputDirectory(cfg.OutputDir, identity)
+	if err != nil {
+		return model.BackupPlan{}, err
+	}
+
 	return model.BackupPlan{
 		DiscIdentity: identity,
-		OutputDir:    cfg.OutputDir,
+		OutputDir:    outputDir,
 		KeepBackup:   cfg.KeepBackup,
 		Titles:       titles,
+	}, nil
+}
+
+func resolveBackupOutputDirectory(template string, discIdentity model.DiscIdentity) (string, error) {
+	directoryGen, err := naming.NewBackupOutputDirGenerator(template)
+	if err != nil {
+		return "", fmt.Errorf("resolving output directory: %w", err)
 	}
+	outputDir, err := directoryGen.Generate(naming.BackupDirectoryContext{
+		Label: discIdentity.Label,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolving output directory: %w", err)
+	}
+	if err := files.EnsureDir(outputDir); err != nil {
+		return "", err
+	}
+	return outputDir, nil
+}
+
+func resolveRipOutputDirectory(template string, discRecord discdb.DiscRecord) (string, error) {
+	directoryGen, err := naming.NewRipOutputDirGenerator(template)
+	if err != nil {
+		return "", fmt.Errorf("resolving output directory: %w", err)
+	}
+	outputDir, err := directoryGen.Generate(naming.DirectoryContext{
+		Media: discRecord.Media,
+		Disc:  discRecord.Disc,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolving output directory: %w", err)
+	}
+	if err := files.EnsureDir(outputDir); err != nil {
+		return "", err
+	}
+	return outputDir, nil
 }
 
 func resolveFilenames(

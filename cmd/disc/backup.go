@@ -45,7 +45,10 @@ func runBackup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	validatedBackupPlan := planBackup(ctx, eng, cfg, identity, discInfo)
+	validatedBackupPlan, err := planBackup(ctx, eng, cfg, identity, discInfo)
+	if err != nil {
+		return err
+	}
 
 	out := os.Stdout
 	progressRenderer := terminal.NewProgressRenderer(out, terminal.DetectInteractiveOutput(out))

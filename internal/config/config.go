@@ -62,13 +62,11 @@ type TemplateConfig struct {
 func DefaultConfig() Config {
 	return Config{
 		CachePath: "",
-		// TODO: Eventually handle this by OS. For now it's best that the user just override
 		DiscRoot: "",
 		LogLevel: "info",
 		// Assume makemkvcon is on the path
 		MakeMkvPath: "makemkvcon",
-		// Output to CWD by default
-		OutputDir: ".",
+		OutputDir: "~/Videos/{{.Disc.Label}}",
 		Templates: TemplateConfig{
 			Movie:   "{{.Media.Title}} ({{.Disc.Year}})",
 			Episode: "{{.Media.Title}}/Season {{.Item.Season}}/{{.Disc.SeriesTitle}} - S{{pad 2 .Item.Season}}E{{.Item.Episode}} - {{.Item.Title}}",
@@ -77,6 +75,9 @@ func DefaultConfig() Config {
 		},
 		Disc: DiscConfig{
 			Mode: ModeFullAuto,
+			Backup: BackupConfig{
+				OutputDir: "~/Videos/backup/{{.Disc.Label}}",
+			},
 		},
 	}
 }
