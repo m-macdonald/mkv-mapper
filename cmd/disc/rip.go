@@ -21,7 +21,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -33,23 +32,18 @@ var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
 	Long:  `The currently inserted disc is ripped to .mkv files and the resulting files are renamed in accordance with the naming pattern using values from TheDiscDB`,
-	PreRun: func(cmd *cobra.Command, args []string) {
-		backupFlag := cmd.Flags().Lookup(backup)
-		if backupFlag != nil && backupFlag.Changed {
-			viper.Set(config.DiscRipBackup, true)
-			if o, ok := backupFlag.Value.(*util.OptionalString); ok && !o.WasEmpty {
-				viper.Set(config.DiscBackupOutputDir, backupFlag.Value.String())
-			}
-		}
-		viper.BindPFlag(config.DiscRipBackupKeep, cmd.Flags().Lookup(keepBackup))
-	},
 	RunE: runRip,
 }
 
 func init() {
 	Cmd.AddCommand(ripCmd)
-	util.RegisterOptionalStringFlag(ripCmd.Flags(), backup, fmt.Sprintf("Backup disc before ripping (Optionally, specify a different destination for the backup: --%s={target dir})", backup))
-	ripCmd.Flags().Bool(keepBackup, false, "Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
+	registerRipFlags(ripCmd)
+	util.RegisterBoolFlag(
+		ripCmd.Flags(),
+		keepBackup,
+		config.DiscRipBackupKeep,
+		false,
+		"Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
 }
 
 func runRip(cmd *cobra.Command, args []string) error {
@@ -92,25 +86,25 @@ func runRipNoBackup(
 ) error {
 	ctx := cmd.Context()
 
-	plan, err := buildPlan(ctx, eng, cfg, cfg.DiscRoot)
+	plan, err := buildRipPlan(ctx, eng, cfg, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
 
-	selectedPlan, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	selectedPlan, err := eng.SelectPlan(cfg.Disc.Rip.Mode, plan)
 	if err != nil {
 		return err
 	}
 
 	needed := selectedPlan.SumTitleSizes()
 	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan, needed)}
-	validatedPlan := eng.ValidatePlan(ctx, selectedPlan, checks)
+	validatedPlan := eng.ValidateRipPlan(ctx, selectedPlan, checks)
 
 	if err = renderers.preview.Render(validatedPlan); err != nil {
 		return err
 	}
 
-	return eng.RunPlan(ctx, validatedPlan, onEvent)
+	return eng.RunRipPlan(ctx, validatedPlan, onEvent)
 }
 
 func runRipWithBackup(
@@ -124,7 +118,7 @@ func runRipWithBackup(
 
 	// Scan disc so that we can reuse the scan for plan and backupPlan construction.
 	// Slightly reduces wear on the disc by allowing us to scan only once.
-	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
@@ -147,7 +141,7 @@ func runRipWithBackup(
 		return err
 	}
 
-	if err := eng.BackupPlanDisc(ctx, validatedBackupPlan, onEvent); err != nil {
+	if err := eng.RunBackupPlan(ctx, validatedBackupPlan, onEvent); err != nil {
 		return fmt.Errorf("backing up disc: %w", err)
 	}
 
@@ -156,7 +150,7 @@ func runRipWithBackup(
 		return err
 	}
 
-	if err := eng.RunPlan(ctx, validatedRipPlan, onEvent); err != nil {
+	if err := eng.RunRipPlan(ctx, validatedRipPlan, onEvent); err != nil {
 		return err
 	}
 
@@ -165,7 +159,7 @@ func runRipWithBackup(
 
 func cleanupBackup(
 	cfg config.Config,
-	ripPlan model.ValidatedPlan,
+	ripPlan model.ValidatedRipPlan,
 	backupPlan model.ValidatedBackupPlan,
 ) error {
 	if cfg.Disc.Rip.KeepBackup {
@@ -183,14 +177,13 @@ func cleanupBackup(
 	return os.RemoveAll(backupPlan.OutputDir)
 }
 
-func buildPlan(
+func buildRipPlan(
 	ctx context.Context,
 	eng *engine.Engine,
 	cfg config.Config,
 	discRoot string,
-) (model.Plan, error) {
-	return eng.BuildPlan(ctx, engine.BuildPlanConfig{
-		OutputDir: cfg.OutputDir,
+) (model.RipPlan, error) {
+	return eng.BuildRipPlan(ctx, engine.BuildRipPlanConfig{
 		DiscRoot:  discRoot,
 		Templates: cfg.Templates,
 		Rip:       cfg.Disc.Rip,
@@ -203,28 +196,27 @@ func planRip(
 	eng *engine.Engine,
 	identity model.DiscIdentity,
 	discInfo makemkv.DiscInfo,
-) (model.ValidatedPlan, error) {
-	planCfg := engine.BuildPlanConfig{
-		OutputDir: cfg.OutputDir,
-		DiscRoot:  cfg.DiscRoot,
+) (model.ValidatedRipPlan, error) {
+	planCfg := engine.BuildRipPlanConfig{
+		DiscRoot:  cfg.Disc.Root,
 		Templates: cfg.Templates,
 		Rip:       cfg.Disc.Rip,
 	}
-	plan, err := eng.CompletePlan(ctx, identity, discInfo, planCfg)
+	plan, err := eng.CompleteRipPlan(ctx, identity, discInfo, planCfg)
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
-	selected, err := eng.SelectPlan(cfg.Disc.Mode, plan)
+	selected, err := eng.SelectPlan(cfg.Disc.Rip.Mode, plan)
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
 	needed := selected.SumTitleSizes()
 	checks := []validation.CheckGroup{
 		engine.RipChecks(selected, needed),
 	}
-	return eng.ValidatePlan(ctx, selected, checks), nil
+	return eng.ValidateRipPlan(ctx, selected, checks), nil
 }
 
 func validateBackupPlan(
@@ -250,8 +242,8 @@ func planBackup(
 	discInfo makemkv.DiscInfo,
 ) (model.ValidatedBackupPlan, error) {
 	backupCfg := engine.BuildBackupPlanConfig{
-		OutputDir:  cfg.Disc.Backup.OutputDir,
-		KeepBackup: cfg.Disc.Rip.KeepBackup,
+		OutputDirTemplate: cfg.Disc.Backup.OutputDirTemplate,
+		KeepBackup:        cfg.Disc.Rip.KeepBackup,
 	}
 	backupPlan, err := eng.CompleteBackupPlan(identity, discInfo, backupCfg)
 	if err != nil {
@@ -264,38 +256,38 @@ func merge(
 	ctx context.Context,
 	eng *engine.Engine,
 	cfg config.Config,
-	validatedPlan model.ValidatedPlan,
+	validatedRipPlan model.ValidatedRipPlan,
 	validatedBackupPlan model.ValidatedBackupPlan,
-) (model.ValidatedPlan, error) {
-	plan, err := buildPlan(ctx, eng, cfg, validatedBackupPlan.OutputDir)
+) (model.ValidatedRipPlan, error) {
+	plan, err := buildRipPlan(ctx, eng, cfg, validatedBackupPlan.OutputDir)
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
-	merged, err := plan.MergeIntents(validatedPlan.Intents())
+	merged, err := plan.MergeIntents(validatedRipPlan.Intents())
 	if err != nil {
-		return model.ValidatedPlan{}, err
+		return model.ValidatedRipPlan{}, err
 	}
 
 	// re-executing validation checks again.
 	// This shouldn't be a problem, but if the checks ever become more expensive or add side-effects, this will need to be reworked.
 	needed := merged.SumTitleSizes()
-	mergedValidatedPlan := eng.ValidatePlan(ctx, merged, []validation.CheckGroup{
+	mergedValidatedPlan := eng.ValidateRipPlan(ctx, merged, []validation.CheckGroup{
 		engine.RipChecks(merged, needed),
 	})
 	return mergedValidatedPlan, nil
 }
 
 type renderers struct {
-	backup   terminal.BackupSummaryRenderer
-	preview  terminal.PreviewRenderer
+	backup   terminal.BackupPreviewRenderer
+	preview  terminal.RipPreviewRenderer
 	progress terminal.ProgressRenderer
 }
 
 func newRenderers(out io.Writer, interactive bool) renderers {
 	return renderers{
-		backup:   terminal.NewBackupSummaryRenderer(out),
-		preview:  terminal.NewPreviewRenderer(out),
+		backup:   terminal.NewBackupPreviewRenderer(out),
+		preview:  terminal.NewRipPreviewRenderer(out),
 		progress: *terminal.NewProgressRenderer(out, interactive),
 	}
 }

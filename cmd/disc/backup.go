@@ -7,9 +7,9 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/event"
 	"m-macdonald/mkv-mapper/internal/terminal"
+	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var backupCmd = &cobra.Command{
@@ -21,10 +21,12 @@ var backupCmd = &cobra.Command{
 
 func init() {
 	Cmd.AddCommand(backupCmd)
-	backupCmd.Flags().String(discRoot, "", "Disc root")
-	backupCmd.Flags().String(outputDir, "", "Directory to back up the disc into")
-	viper.BindPFlag(config.DiscRoot, backupCmd.Flags().Lookup(discRoot))
-	viper.BindPFlag(config.DiscBackupOutputDir, backupCmd.Flags().Lookup(outputDir))
+	util.RegisterStringFlag(
+		backupCmd.Flags(),
+		outputDir,
+		config.DiscBackupOutputDirTemplate,
+		"",
+		"Template for the backup output directory, e.g. ~/Videos/backup/{{.Disc.Label}}")
 }
 
 func runBackup(cmd *cobra.Command, args []string) error {
@@ -40,7 +42,7 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	}
 	eng := services.NewEngine(terminal.NewSelector())
 
-	identity, discInfo, err := eng.ScanDisc(ctx, cfg.DiscRoot)
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
@@ -53,13 +55,13 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	out := os.Stdout
 	progressRenderer := terminal.NewProgressRenderer(out, terminal.DetectInteractiveOutput(out))
 	defer progressRenderer.Close()
-	backupRenderer := terminal.NewBackupSummaryRenderer(out)
+	backupRenderer := terminal.NewBackupPreviewRenderer(out)
 
 	if err := backupRenderer.Render(validatedBackupPlan); err != nil {
 		return err
 	}
 
-	return eng.BackupPlanDisc(
+	return eng.RunBackupPlan(
 		ctx,
 		validatedBackupPlan,
 		func(e event.Event) {

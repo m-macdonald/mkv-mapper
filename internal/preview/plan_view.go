@@ -15,7 +15,7 @@ type Note struct {
 	Message string
 }
 
-type TitleView struct {
+type TitleRipPlanView struct {
 	Source  string
 	Target  string
 	Size    uint64
@@ -28,13 +28,13 @@ type CheckGroupView struct {
 	Results []validation.Result
 }
 
-type PlanView struct {
+type RipPlanView struct {
 	DiscName       string
 	Year           int
 	Format         string
 	Hash           string
-	Matched        []TitleView
-	Unmatched      []TitleView
+	Matched        []TitleRipPlanView
+	Unmatched      []TitleRipPlanView
 	UnmatchedRange string
 
 	CheckGroups []CheckGroupView
@@ -44,7 +44,7 @@ type PlanView struct {
 // The concept of groups may be valuable in the future, so it may not need to be ripped out completely.
 var groupOrder = []validation.CheckGroupLabel{validation.BackupLabel, validation.RipLabel}
 
-func BuildPlanView(plan model.ValidatedPlan) PlanView {
+func BuildRipPlanView(plan model.ValidatedRipPlan) RipPlanView {
 	warningsByTitle := indexByTitleId(
 		plan.BuildReport.Warnings,
 		func(w model.PlanWarning) *string {
@@ -57,7 +57,7 @@ func BuildPlanView(plan model.ValidatedPlan) PlanView {
 		func(v validation.Result) *string { return &v.RefID },
 	)
 
-	view := PlanView{
+	view := RipPlanView{
 		DiscName: plan.MediaInfo.Title,
 		Year:     plan.MediaInfo.Year,
 		Format:   plan.DiscInfo.Format,
@@ -77,7 +77,7 @@ func BuildPlanView(plan model.ValidatedPlan) PlanView {
 		}
 		if len(discLevel) > 0 {
 			view.CheckGroups = append(view.CheckGroups, CheckGroupView{
-				Label: label,
+				Label:   label,
 				Results: discLevel,
 			})
 		}
@@ -86,7 +86,7 @@ func BuildPlanView(plan model.ValidatedPlan) PlanView {
 	for _, t := range plan.Titles {
 		titleId := strconv.Itoa(int(t.TitleId))
 
-		tv := TitleView{
+		tv := TitleRipPlanView{
 			Source: t.SourcePlaylist,
 			Target: t.FinalName,
 			Size:   t.EstimatedSize,
@@ -113,13 +113,13 @@ func BuildPlanView(plan model.ValidatedPlan) PlanView {
 	return view
 }
 
-func sortBySource(titles []TitleView) {
+func sortBySource(titles []TitleRipPlanView) {
 	sort.Slice(titles, func(i, j int) bool {
 		return titles[i].Source < titles[j].Source
 	})
 }
 
-func sizeRange(titles []TitleView) string {
+func sizeRange(titles []TitleRipPlanView) string {
 	if len(titles) == 0 {
 		return ""
 	}

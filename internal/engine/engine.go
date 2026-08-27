@@ -61,7 +61,7 @@ func (e *Engine) ScanDisc(ctx context.Context, discRoot string) (model.DiscIdent
 	return identity, discInfo, nil
 }
 
-func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titles []model.TitlePlan) ([]model.TitlePlan, error) {
+func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titles []model.TitleRipPlan) ([]model.TitleRipPlan, error) {
 	disc, err := e.makemkv.ReadDisc(ctx, source)
 	if err != nil {
 		return nil, fmt.Errorf("scanning rip source for title resolution: %w", err)
@@ -72,7 +72,7 @@ func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titl
 		bySignature[title.Signature] = title
 	}
 
-	resolved := make([]model.TitlePlan, 0, len(titles))
+	resolved := make([]model.TitleRipPlan, 0, len(titles))
 	for _, titlePlan := range titles {
 		title, ok := bySignature[titlePlan.SegmentSignature]
 		if !ok {
