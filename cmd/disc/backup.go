@@ -55,7 +55,7 @@ func runBackup(cmd *cobra.Command, args []string) error {
 	out := os.Stdout
 	progressRenderer := terminal.NewProgressRenderer(out, terminal.DetectInteractiveOutput(out))
 	defer progressRenderer.Close()
-	backupRenderer := terminal.NewBackupSummaryRenderer(out)
+	backupRenderer := terminal.NewBackupPreviewRenderer(out)
 
 	if err := backupRenderer.Render(validatedBackupPlan); err != nil {
 		return err

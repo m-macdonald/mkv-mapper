@@ -279,15 +279,15 @@ func merge(
 }
 
 type renderers struct {
-	backup   terminal.BackupSummaryRenderer
-	preview  terminal.PreviewRenderer
+	backup   terminal.BackupPreviewRenderer
+	preview  terminal.RipPreviewRenderer
 	progress terminal.ProgressRenderer
 }
 
 func newRenderers(out io.Writer, interactive bool) renderers {
 	return renderers{
-		backup:   terminal.NewBackupSummaryRenderer(out),
-		preview:  terminal.NewPreviewRenderer(out),
+		backup:   terminal.NewBackupPreviewRenderer(out),
+		preview:  terminal.NewRipPreviewRenderer(out),
 		progress: *terminal.NewProgressRenderer(out, interactive),
 	}
 }

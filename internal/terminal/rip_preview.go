@@ -11,59 +11,59 @@ import (
 	"github.com/pterm/pterm"
 )
 
-type PreviewRenderer struct {
+type RipPreviewRenderer struct {
 	out io.Writer
 }
 
-func NewPreviewRenderer(out io.Writer) PreviewRenderer {
-	return PreviewRenderer{
+func NewRipPreviewRenderer(out io.Writer) RipPreviewRenderer {
+	return RipPreviewRenderer{
 		out: out,
 	}
 }
 
-func (p *PreviewRenderer) Render(plan model.ValidatedRipPlan) error {
+func (r *RipPreviewRenderer) Render(plan model.ValidatedRipPlan) error {
 	view := preview.BuildRipPlanView(plan)
 
-	if err := p.renderHeader(view); err != nil {
+	if err := r.renderHeader(view); err != nil {
 		return err
 	}
-	if err := p.renderTitles(view); err != nil {
+	if err := r.renderTitles(view); err != nil {
 		return err
 	}
-	if err := p.renderValidation(view); err != nil {
+	if err := r.renderValidation(view); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(p.out); err != nil {
+	if _, err := fmt.Fprintln(r.out); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *PreviewRenderer) renderHeader(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderHeader(view preview.RipPlanView) error {
 	title := pterm.NewStyle(pterm.Bold).Sprintf("%s (%d) - %s", view.DiscName, view.Year, view.Format)
 	hash := pterm.NewStyle(pterm.FgGray).Sprintf("Hash: %s", view.Hash)
 
-	_, err := fmt.Fprintf(p.out, "%s\n%s\n\n", title, hash)
+	_, err := fmt.Fprintf(r.out, "%s\n%s\n\n", title, hash)
 	return err
 }
 
-func (p *PreviewRenderer) renderTitles(view preview.RipPlanView) error {
-	if _, err := fmt.Fprintf(p.out, "Titles:\n"); err != nil {
+func (r *RipPreviewRenderer) renderTitles(view preview.RipPlanView) error {
+	if _, err := fmt.Fprintf(r.out, "Titles:\n"); err != nil {
 		return err
 	}
 
 	for _, t := range view.Matched {
-		if err := p.renderTitle(t); err != nil {
+		if err := r.renderTitle(t); err != nil {
 			return err
 		}
 	}
 
-	return p.renderUnmatched(view)
+	return r.renderUnmatched(view)
 }
 
-func (p *PreviewRenderer) renderTitle(titleView preview.TitleRipPlanView) error {
+func (r *RipPreviewRenderer) renderTitle(titleView preview.TitleRipPlanView) error {
 	_, err := fmt.Fprintf(
-		p.out,
+		r.out,
 		"  %s → %s (%s)\n",
 		titleView.Source,
 		titleView.Target,
@@ -75,16 +75,16 @@ func (p *PreviewRenderer) renderTitle(titleView preview.TitleRipPlanView) error 
 
 	for _, note := range titleView.Notes {
 		symbol := getValidationSymbol(note.Status)
-		if _, err := fmt.Fprintf(p.out, "	%s %s\n", symbol, note.Message); err != nil {
+		if _, err := fmt.Fprintf(r.out, "	%s %s\n", symbol, note.Message); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *PreviewRenderer) renderValidation(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderValidation(view preview.RipPlanView) error {
 	for _, group := range view.CheckGroups {
-		if err := renderCheckResults(p.out, group.Label, group.Results); err != nil {
+		if err := renderCheckResults(r.out, group.Label, group.Results); err != nil {
 			return err
 		}
 	}
@@ -92,7 +92,7 @@ func (p *PreviewRenderer) renderValidation(view preview.RipPlanView) error {
 	return nil
 }
 
-func (p *PreviewRenderer) renderUnmatched(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderUnmatched(view preview.RipPlanView) error {
 	if len(view.Unmatched) == 0 {
 		return nil
 	}
@@ -103,6 +103,6 @@ func (p *PreviewRenderer) renderUnmatched(view preview.RipPlanView) error {
 		view.UnmatchedRange,
 	)
 
-	_, err := fmt.Fprintf(p.out, label)
+	_, err := fmt.Fprintf(r.out, label)
 	return err
 }
