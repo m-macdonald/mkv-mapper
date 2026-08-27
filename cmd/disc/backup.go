@@ -7,9 +7,9 @@ import (
 	"m-macdonald/mkv-mapper/internal/config"
 	"m-macdonald/mkv-mapper/internal/event"
 	"m-macdonald/mkv-mapper/internal/terminal"
+	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var backupCmd = &cobra.Command{
@@ -21,10 +21,12 @@ var backupCmd = &cobra.Command{
 
 func init() {
 	Cmd.AddCommand(backupCmd)
-	backupCmd.Flags().String(discRoot, "", "Disc root")
-	backupCmd.Flags().String(outputDir, "", "Directory to back up the disc into")
-	viper.BindPFlag(config.DiscRoot, backupCmd.Flags().Lookup(discRoot))
-	viper.BindPFlag(config.DiscBackupOutputDirTemplate, backupCmd.Flags().Lookup(outputDir))
+	util.RegisterStringFlag(
+		backupCmd.Flags(),
+		outputDir,
+		config.DiscBackupOutputDirTemplate,
+		"",
+		"Template for the backup output directory, e.g. ~/Videos/backup/{{.Disc.Label}}")
 }
 
 func runBackup(cmd *cobra.Command, args []string) error {

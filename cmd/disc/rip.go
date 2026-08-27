@@ -29,8 +29,6 @@ const (
 	keepBackup = "keep-backup"
 )
 
-var dfltMode = config.DefaultConfig().Disc.Rip.Mode
-
 var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
@@ -43,19 +41,19 @@ var ripCmd = &cobra.Command{
 				viper.Set(config.DiscBackupOutputDirTemplate, backupFlag.Value.String())
 			}
 		}
-		viper.BindPFlag(config.DiscRipBackupKeep, cmd.Flags().Lookup(keepBackup))
-		viper.BindPFlag(config.DiscRipOutputDirTemplate, cmd.Flags().Lookup(outputDir))
-		viper.BindPFlag(config.DiscRipMode, cmd.Flags().Lookup(mode))
 	},
 	RunE: runRip,
 }
 
 func init() {
 	Cmd.AddCommand(ripCmd)
-	util.RegisterOptionalStringFlag(ripCmd.Flags(), backup, fmt.Sprintf("Backup disc before ripping (Optionally, specify a different destination for the backup: --%s={target dir})", backup))
-	ripCmd.Flags().Bool(keepBackup, false, "Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
-	ripCmd.Flags().String(outputDir, "", "Output directory")
-	ripCmd.Flags().Var(&dfltMode, mode, "Mode to execute in")
+	registerRipFlags(ripCmd)
+	util.RegisterBoolFlag(
+		ripCmd.Flags(),
+		keepBackup,
+		config.DiscRipBackupKeep,
+		false,
+		"Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
 }
 
 func runRip(cmd *cobra.Command, args []string) error {

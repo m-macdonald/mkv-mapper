@@ -24,6 +24,7 @@ var previewCmd = &cobra.Command{
 
 func init() {
 	Cmd.AddCommand(previewCmd)
+	registerRipFlags(previewCmd)
 }
 
 func runPreview(cmd *cobra.Command, args []string) error {
@@ -42,9 +43,9 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	plan, err := eng.BuildRipPlan(
 		cmd.Context(),
 		engine.BuildRipPlanConfig{
-			DiscRoot:          cfg.Disc.Root,
-			Templates:         cfg.Templates,
-			Rip:               cfg.Disc.Rip,
+			DiscRoot:  cfg.Disc.Root,
+			Templates: cfg.Templates,
+			Rip:       cfg.Disc.Rip,
 		},
 	)
 	if err != nil {
