@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -39,6 +40,16 @@ func RegisterOptionalStringFlag(flagSet *pflag.FlagSet, name, usage string) {
 func bindConfigFlag(flags *pflag.FlagSet, viperKey, flagName string) {
 	if err := viper.BindPFlag(viperKey, flags.Lookup(flagName)); err != nil {
 		panic(fmt.Sprintf("bindConfigFlag: binding %q to %q: %v", flagName, viperKey, err))
+	}
+}
+
+func AppendPreRun(cmd *cobra.Command, fn func(cmd *cobra.Command, args []string)) {
+	existing := cmd.PreRun
+	cmd.PreRun = func(cmd *cobra.Command, args []string) {
+		if existing != nil {
+			existing(cmd, args)
+		}
+		fn(cmd, args)
 	}
 }
 

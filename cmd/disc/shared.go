@@ -7,6 +7,7 @@ import (
 	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -31,6 +32,15 @@ func registerBackupFlag(cmd *cobra.Command) {
 		cmd.Flags(),
 		backup,
 		fmt.Sprintf("Include a disc backup in this operation (optionally, specify a template for the destination directory: --%s=[target dir])", backup))
+	util.AppendPreRun(cmd, func(cmd *cobra.Command, args []string) {
+		backupFlag := cmd.Flags().Lookup(backup)
+		if backupFlag != nil && backupFlag.Changed {
+			viper.Set(config.DiscRipBackup, true)
+			if o, ok := backupFlag.Value.(*util.OptionalString); ok && !o.WasEmpty {
+				viper.Set(config.DiscBackupOutputDirTemplate, backupFlag.Value.String())
+			}
+		}
+	})
 }
 
 func registerTemplateOverrideFlag(cmd *cobra.Command) {

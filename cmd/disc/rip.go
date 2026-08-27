@@ -21,7 +21,6 @@ import (
 	"m-macdonald/mkv-mapper/internal/validation"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -33,15 +32,6 @@ var ripCmd = &cobra.Command{
 	Use:   "rip",
 	Short: "Rips the current disc to .mkv and renames the output files",
 	Long:  `The currently inserted disc is ripped to .mkv files and the resulting files are renamed in accordance with the naming pattern using values from TheDiscDB`,
-	PreRun: func(cmd *cobra.Command, args []string) {
-		backupFlag := cmd.Flags().Lookup(backup)
-		if backupFlag != nil && backupFlag.Changed {
-			viper.Set(config.DiscRipBackup, true)
-			if o, ok := backupFlag.Value.(*util.OptionalString); ok && !o.WasEmpty {
-				viper.Set(config.DiscBackupOutputDirTemplate, backupFlag.Value.String())
-			}
-		}
-	},
 	RunE: runRip,
 }
 
