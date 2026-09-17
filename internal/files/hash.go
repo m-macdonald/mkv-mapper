@@ -32,10 +32,10 @@ func newDiscHasher(root string) (discHasher, error) {
 	if !info.IsDir() {
 		return isoHasher{root: root}, nil
 	}
-	if isDir(filepath.Join(root, "BDMV", "STREAM")) {
+	if IsDir(filepath.Join(root, "BDMV", "STREAM")) {
 		return bluRayHasher{root: root}, nil
 	}
-	if isDir(filepath.Join(root, "VIDEO_TS")) {
+	if IsDir(filepath.Join(root, "VIDEO_TS")) {
 		return dvdHasher{root: root}, nil
 	}
 

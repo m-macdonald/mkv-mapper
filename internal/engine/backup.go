@@ -68,7 +68,7 @@ func (e *Engine) RunBackupPlan(
 	if err := plan.Err(); err != nil {
 		return err
 	}
-	source, err := e.discResolver.ResolveByLabel(ctx, plan.DiscIdentity.Label)
+	source, err := e.resolveDiscSourceByLabel(ctx, plan.DiscIdentity.Label)
 	if err != nil {
 		return fmt.Errorf("resolving backup source: %w", err)
 	}
