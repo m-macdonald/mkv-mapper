@@ -4,6 +4,7 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package disc
 
 import (
+	"context"
 	"os"
 
 	"m-macdonald/mkv-mapper/internal/app"
@@ -40,14 +41,25 @@ func runPreview(cmd *cobra.Command, args []string) error {
 
 	eng := services.NewEngine(terminal.NewSelector())
 
-	plan, err := eng.BuildRipPlan(
-		cmd.Context(),
-		engine.BuildRipPlanConfig{
-			DiscRoot:  cfg.Disc.Root,
-			Templates: cfg.Templates,
-			Rip:       cfg.Disc.Rip,
-		},
-	)
+	out := os.Stdout
+	renderers := newRenderers(out, terminal.DetectInteractiveOutput(out))
+	defer renderers.close()
+
+	ctx := cmd.Context()
+	if cfg.Disc.Rip.Backup {
+		return runPreviewWithBackup(ctx, cfg, eng, renderers)
+	}
+
+	return runPreviewNoBackup(ctx, cfg, eng, renderers)
+}
+
+func runPreviewNoBackup(
+	ctx context.Context,
+	cfg config.Config,
+	eng *engine.Engine,
+	renderers renderers,
+) error {
+	plan, err := buildRipPlan(ctx, eng, cfg, cfg.Disc.Root)
 	if err != nil {
 		return err
 	}
@@ -57,15 +69,37 @@ func runPreview(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	checkGroups := []validation.CheckGroup{
-		engine.RipChecks(selectedPlan, selectedPlan.SumTitleSizes()),
-	}
-	validatedPlan := eng.ValidateRipPlan(cmd.Context(), selectedPlan, checkGroups)
+	needed := selectedPlan.SumTitleSizes()
+	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan, needed)}
+	validatedPlan := eng.ValidateRipPlan(ctx, selectedPlan, checks)
 
-	previewRenderer := terminal.NewPreviewRenderer(os.Stdout)
-	if err := previewRenderer.Render(validatedPlan); err != nil {
+	return renderers.preview.Render(validatedPlan)
+}
+
+func runPreviewWithBackup(
+	ctx context.Context,
+	cfg config.Config,
+	eng *engine.Engine,
+	renderers renderers,
+) error {
+	identity, discInfo, err := eng.ScanDisc(ctx, cfg.Disc.Root)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	validatedBackupPlan, err := planBackup(ctx, eng, cfg, identity, discInfo)
+	if err != nil {
+		return err
+	}
+
+	if err := renderers.backup.Render(validatedBackupPlan); err != nil {
+		return err
+	}
+
+	validatedPlan, err := planRip(ctx, cfg, eng, identity, discInfo)
+	if err != nil {
+		return err
+	}
+
+	return renderers.preview.Render(validatedPlan)
 }
