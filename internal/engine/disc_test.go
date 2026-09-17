@@ -1,4 +1,4 @@
-package files
+package engine
 
 import (
 	"os"
@@ -22,8 +22,8 @@ func TestResolveDiscRoot(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		resolver := Resolver{}
-		got, err := resolver.ResolveDiscRoot(test.cliRoot)
+		e := Engine{}
+		got, err := e.resolveDiscRoot(test.cliRoot)
 
 		if (err != nil) != test.wantErr {
 			t.Fatalf("unexpected error: %v", err)
@@ -87,3 +87,4 @@ func TestFindMountedDisc(t *testing.T) {
 		})
 	}
 }
+
