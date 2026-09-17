@@ -6,21 +6,18 @@ import (
 
 	"m-macdonald/mkv-mapper/internal/discdb"
 	"m-macdonald/mkv-mapper/internal/event"
-	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/makemkv"
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
 	"m-macdonald/mkv-mapper/internal/model"
-	"m-macdonald/mkv-mapper/internal/signature"
 
 	"go.uber.org/zap"
 )
 
 type Engine struct {
-	makemkv      *makemkv.Client
-	discdb       *discdb.CachedClient
-	discResolver *files.Resolver
-	selector     model.Selector
-	logger       *zap.SugaredLogger
+	makemkv  *makemkv.Client
+	discdb   *discdb.CachedClient
+	selector model.Selector
+	logger   *zap.SugaredLogger
 }
 
 type EngineEventSink func(event.Event)
@@ -28,22 +25,20 @@ type EngineEventSink func(event.Event)
 func New(
 	makemkv *makemkv.Client,
 	discdb *discdb.CachedClient,
-	discResolver *files.Resolver,
 	logger *zap.SugaredLogger,
 	selector model.Selector,
 ) *Engine {
 	return &Engine{
-		makemkv:      makemkv,
-		discdb:       discdb,
-		discResolver: discResolver,
-		logger:       logger,
-		selector:     selector,
+		makemkv:  makemkv,
+		discdb:   discdb,
+		logger:   logger,
+		selector: selector,
 	}
 }
 
 // TODO: ScanDisc returns makemkv.DiscInfo, maybe this should be moved into model? The commands do not need to be aware of makemkv
 func (e *Engine) ScanDisc(ctx context.Context, discRoot string) (model.DiscIdentity, makemkv.DiscInfo, error) {
-	resolvedRoot, err := e.discResolver.ResolveDiscRoot(discRoot)
+	resolvedRoot, err := e.resolveDiscRoot(discRoot)
 	if err != nil {
 		return model.DiscIdentity{}, makemkv.DiscInfo{}, err
 	}
