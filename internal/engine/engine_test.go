@@ -176,7 +176,7 @@ func TestValidatePlanConstruction(t *testing.T) {
 	}
 
 	eng := Engine{selector: th.NewSelector(model.Selection{})}
-	validatedPlan := eng.ValidatePlan(selectedPlan)
+	validatedPlan := eng.ValidateRipPlan(selectedPlan)
 
 	if validatedPlan.OutputDir != "/test/output" {
 		t.Error("ValidatePlan: OutputDir not carried forward")

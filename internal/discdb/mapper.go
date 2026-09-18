@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"m-macdonald/mkv-mapper/internal/signature"
+	"m-macdonald/mkv-mapper/internal/model"
 )
 
 type DiscRecord struct {
@@ -35,13 +35,12 @@ type Disc struct {
 }
 
 type Title struct {
-	Duration    string                     `json:"duration"`
-	DisplaySize string                     `json:"displaySize"`
-	SourceFile  string                     `json:"sourceFile"`
-	Size        uint64                     `json:"size"`
-	SegmentMap  string                     `json:"segmentMap"`
-	Signature   signature.SegmentSignature `json:"signature"`
-	Item        *Item                      `json:"item,omitempty"`
+	Duration    string `json:"duration"`
+	DisplaySize string `json:"displaySize"`
+	// Prefer using Identity() for equality checks
+	SourceFilename model.SourceFilename `json:"sourceFile"`
+	Size           uint64               `json:"size"`
+	Item           *Item                `json:"item,omitempty"`
 }
 
 func (t *Title) ItemValue() (Item, bool) {
@@ -50,6 +49,10 @@ func (t *Title) ItemValue() (Item, bool) {
 	}
 
 	return *t.Item, true
+}
+
+func (t Title) Identity() model.TitleIdentity {
+	return model.NewTitleIdentity(t.SourceFilename, nil)
 }
 
 func (t *Title) UnmarshalJSON(data []byte) error {
@@ -145,18 +148,12 @@ func titleResponsesToTitles(titleResponses []TitleResponse) ([]Title, error) {
 	titles := make([]Title, 0, len(titleResponses))
 
 	for _, titleResponse := range titleResponses {
-		signature, err := signature.NormalizeSegments(titleResponse.SegmentMap)
-		if err != nil {
-			return nil, err
-		}
 		titles = append(titles, Title{
-			Duration:    titleResponse.Duration,
-			DisplaySize: titleResponse.DisplaySize,
-			SourceFile:  titleResponse.SourceFile,
-			Size:        titleResponse.Size,
-			SegmentMap:  titleResponse.SegmentMap,
-			Signature:   signature,
-			Item:        itemResponseToItem(titleResponse.Item),
+			Duration:       titleResponse.Duration,
+			DisplaySize:    titleResponse.DisplaySize,
+			SourceFilename: titleResponse.SourceFilename,
+			Size:           titleResponse.Size,
+			Item:           itemResponseToItem(titleResponse.Item),
 		})
 	}
 

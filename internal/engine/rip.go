@@ -17,10 +17,10 @@ import (
 )
 
 type BuildRipPlanConfig struct {
-	DiscRoot          string
-	Templates         config.TemplateConfig
-	Rip               config.RipConfig
-	Backup            config.BackupConfig
+	DiscRoot  string
+	Templates config.TemplateConfig
+	Rip       config.RipConfig
+	Backup    config.BackupConfig
 }
 
 type planContent struct {
@@ -152,13 +152,12 @@ func resolveFilenames(
 
 		content.titles = append(content.titles, model.TitleRipPlan{
 			TitleId:           mapping.MakeMkvTitle.TitleId,
-			SourcePlaylist:    mapping.MakeMkvTitle.SourceFilename,
+			Identity:          mapping.MakeMkvTitle.Identity,
 			MakeMkvOutputFile: mapping.MakeMkvTitle.OutputFilename,
 			FinalName:         filenameResolution.FinalName,
 			EstimatedSize:     mapping.MakeMkvTitle.OutputFileSize,
 			Duration:          mapping.DiscDbTitle.Duration,
 			IsMatched:         mapping.DiscDbTitle.Item != nil,
-			SegmentSignature:  mapping.DiscDbTitle.Signature,
 		})
 	}
 
