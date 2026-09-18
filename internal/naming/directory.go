@@ -1,8 +1,6 @@
 package naming
 
 import (
-	"html/template"
-
 	"m-macdonald/mkv-mapper/internal/discdb"
 )
 
