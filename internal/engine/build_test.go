@@ -71,7 +71,7 @@ func TestBuildPlan(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			plan, err := BuildPlan("/disc", "/output", test.config, test.discRecord, test.titles)
+			plan, err := BuildRipPlan("/disc", "/output", test.config, test.discRecord, test.titles)
 			if (err != nil) != test.wantErr {
 				t.Fatalf("unexpected error: %v", err)
 			}

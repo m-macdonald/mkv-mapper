@@ -56,31 +56,6 @@ func (e *Engine) ScanDisc(ctx context.Context, discRoot string) (model.DiscIdent
 	return identity, discInfo, nil
 }
 
-func (e *Engine) ResolveTitlesForSource(ctx context.Context, source string, titles []model.TitleRipPlan) ([]model.TitleRipPlan, error) {
-	disc, err := e.makemkv.ReadDisc(ctx, source)
-	if err != nil {
-		return nil, fmt.Errorf("scanning rip source for title resolution: %w", err)
-	}
-
-	bySignature := make(map[signature.SegmentSignature]makemkv.Title, len(disc.Titles))
-	for _, title := range disc.Titles {
-		bySignature[title.Signature] = title
-	}
-
-	resolved := make([]model.TitleRipPlan, 0, len(titles))
-	for _, titlePlan := range titles {
-		title, ok := bySignature[titlePlan.SegmentSignature]
-		if !ok {
-			return nil, fmt.Errorf("title %q (signature %s) not found when re-scanning %s", titlePlan.FinalName, titlePlan.SegmentSignature, source)
-		}
-
-		titlePlan.TitleId = title.TitleId
-		titlePlan.MakeMkvOutputFile = title.OutputFilename
-		resolved = append(resolved, titlePlan)
-	}
-	return resolved, nil
-}
-
 func parsedLineToEvent(line lines.ParsedLine) (event.Event, bool) {
 	switch l := line.(type) {
 	case lines.ProgressValue:

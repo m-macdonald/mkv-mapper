@@ -114,7 +114,7 @@ type filenameGenerator interface {
 	Generate(titleCtx TitleContext) (string, error)
 }
 
-type FilenameGenerator = generator[TitleContext, TemplateVars] 
+type FilenameGenerator = generator[TitleContext, TemplateVars]
 
 type TitleContext struct {
 	DiscDbMedia  discdb.Media
@@ -135,7 +135,7 @@ func NewFilenameGenerator(templateConfig config.TemplateConfig) (*FilenameGenera
 	if hasOverride {
 		templates[string(templateTypeOverride)] = templateConfig.Override
 	}
-	
+
 	selectTemplate := func(titleCtx TitleContext) string {
 		if hasOverride {
 			return string(templateTypeOverride)
@@ -176,11 +176,11 @@ type TemplateDisc struct {
 }
 
 type TemplateTitle struct {
-	DisplaySize string
-	Duration    string
-	SegmentMap  string
-	Size        uint64
-	SourceFile  string
+	DisplaySize    string
+	Duration       string
+	SegmentMap     string
+	Size           uint64
+	SourceFilename string
 }
 
 type TemplateMakeMkvTitle struct {
@@ -207,17 +207,15 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 			Slug:        titleCtx.DiscDbDisc.Slug,
 		},
 		Title: TemplateTitle{
-			DisplaySize: titleCtx.DiscDbTitle.DisplaySize,
-			Duration:    titleCtx.DiscDbTitle.Duration,
-			SegmentMap:  titleCtx.DiscDbTitle.SegmentMap,
-			Size:        titleCtx.DiscDbTitle.Size,
-			SourceFile:  titleCtx.DiscDbTitle.SourceFile,
+			DisplaySize:    titleCtx.DiscDbTitle.DisplaySize,
+			Duration:       titleCtx.DiscDbTitle.Duration,
+			Size:           titleCtx.DiscDbTitle.Size,
+			SourceFilename: string(titleCtx.DiscDbTitle.Identity().Primary),
 		},
 		MakeMkv: TemplateMakeMkvTitle{
 			TitleId:        titleCtx.MakeMkvTitle.TitleId,
 			OutputFilename: titleCtx.MakeMkvTitle.OutputFilename,
-			SourceFilename: titleCtx.MakeMkvTitle.SourceFilename,
-			Segments:       string(titleCtx.MakeMkvTitle.Signature),
+			SourceFilename: string(titleCtx.MakeMkvTitle.Identity.Primary),
 			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 

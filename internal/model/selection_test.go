@@ -38,7 +38,7 @@ func TestFullSelection(t *testing.T) {
 			},
 			want: Selection{
 				Mode: config.ModeFullAuto,
-				SelectedIds: []lines.TitleId{1, 2, 3},
+				Selected: []lines.TitleId{1, 2, 3},
 			},
 		},
 	}
@@ -57,14 +57,14 @@ func TestFullSelection(t *testing.T) {
 func TestTrimmedSelection(t *testing.T) {
 	tests := []struct {
 		name string
-		plan Plan
+		plan RipPlan
 		want Selection
 	}{
 		{
 			name: "selects only matched titles",
-			plan: Plan{
+			plan: RipPlan{
 				PlanBase: PlanBase{
-					Titles: []TitlePlan{
+					Titles: []TitleRipPlan{
 						{
 							IsMatched: true,
 							TitleId: 1,

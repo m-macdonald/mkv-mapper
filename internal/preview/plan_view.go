@@ -87,7 +87,7 @@ func BuildRipPlanView(plan model.ValidatedRipPlan) RipPlanView {
 		titleId := strconv.Itoa(int(t.TitleId))
 
 		tv := TitleRipPlanView{
-			Source: t.SourcePlaylist,
+			Source: string(t.Identity.Primary),
 			Target: t.FinalName,
 			Size:   t.EstimatedSize,
 		}

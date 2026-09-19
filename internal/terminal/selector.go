@@ -50,8 +50,8 @@ func formatTitleLabel(title model.TitleRipPlan) string {
 	if title.IsMatched {
 		matched = " [matched]"
 	}
-	// This label is safe to key off of only because SourcePlaylist and FinalName are both unique. Bear this in mind when making any future changes
-	return fmt.Sprintf("%s: %s (%s / %s)%s", title.SourcePlaylist, title.FinalName, title.Duration, util.FormatSize(title.EstimatedSize), matched)
+	// This label is safe to key off of only because SourceFilename and FinalName are both unique. Bear this in mind when making any future changes
+	return fmt.Sprintf("%s: %s (%s / %s)%s", title.Identity.Primary, title.FinalName, title.Duration, util.FormatSize(title.EstimatedSize), matched)
 }
 
 type titleOption struct {

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"m-macdonald/mkv-mapper/internal/model"
 )
 
 const discDbGraphqlEndpoint = "https://thediscdb.com/graphql"
@@ -110,12 +112,12 @@ type DiscResponse struct {
 }
 
 type TitleResponse struct {
-	Index       int    `json:"index"`
-	Duration    string `json:"duration"`
-	DisplaySize string `json:"displaySize"`
-	SourceFile  string `json:"sourceFile"`
-	Size        uint64 `json:"size"`
-	SegmentMap  string `json:"segmentMap"`
+	Index          int                  `json:"index"`
+	Duration       string               `json:"duration"`
+	DisplaySize    string               `json:"displaySize"`
+	SourceFilename model.SourceFilename `json:"sourceFile"`
+	Size           uint64               `json:"size"`
+	SegmentMap     string               `json:"segmentMap"`
 	// Item is known to be nullable. Making it a pointer so that it can be checked for nil
 	Item *ItemResponse `json:"item"`
 }
