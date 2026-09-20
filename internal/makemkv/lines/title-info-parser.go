@@ -10,6 +10,7 @@ type TitleInfoCode uint
 const (
 	TitleInfoCodeSize           TitleInfoCode = 11
 	TitleInfoCodeSourceFileName TitleInfoCode = 16
+	TitleInfoCodeSourceTitleId  TitleInfoCode = 24
 	TitleInfoCodeOutputFileName TitleInfoCode = 27
 	TitleInfoCodeSegmentsMap    TitleInfoCode = 26
 )
@@ -18,7 +19,7 @@ type TitleId int
 
 type TitleInfo struct {
 	parsedLineBase
-	TitleId    	TitleId 
+	TitleId     TitleId
 	AttributeId TitleInfoCode
 	Code        int
 	Value       string

@@ -252,6 +252,12 @@ func (c *Client) ReadDisc(ctx context.Context, discRoot string) (DiscInfo, error
 
 func (c *Client) composeTitle(title *Title, line lines.TitleInfo) error {
 	switch line.AttributeId {
+	case lines.TitleInfoCodeSourceTitleId:
+		// DVD titles report Source Title Id instead of SourceFilename.
+		// Only use it if the primary identity hasn't already been set by a SourceFilename line
+		if title.Identity.Primary == model.NewSourceFilename("") {
+			title.Identity.Primary = model.NewSourceFilename(line.Value)
+		}
 	case lines.TitleInfoCodeSourceFileName:
 		title.Identity.Primary = model.NewSourceFilename(line.Value)
 	case lines.TitleInfoCodeOutputFileName:
@@ -260,9 +266,8 @@ func (c *Client) composeTitle(title *Title, line lines.TitleInfo) error {
 		size, err := strconv.ParseUint(line.Value, 10, 64)
 		if err != nil {
 			return fmt.Errorf("parsing title size %q: %w", line.Value, err)
-		} else {
-			title.OutputFileSize = size
 		}
+		title.OutputFileSize = size
 	}
 
 	return nil
