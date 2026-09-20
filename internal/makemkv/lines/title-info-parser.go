@@ -8,11 +8,11 @@ import (
 type TitleInfoCode uint
 
 const (
+	TitleInfoCodeOutputFileName TitleInfoCode = 27
+	TitleInfoCodeSegmentsMap    TitleInfoCode = 26
 	TitleInfoCodeSize           TitleInfoCode = 11
 	TitleInfoCodeSourceFileName TitleInfoCode = 16
 	TitleInfoCodeSourceTitleId  TitleInfoCode = 24
-	TitleInfoCodeOutputFileName TitleInfoCode = 27
-	TitleInfoCodeSegmentsMap    TitleInfoCode = 26
 )
 
 type TitleId int
