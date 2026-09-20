@@ -46,13 +46,6 @@ func NewDiscTitle(opts ...func(*discdb.Title)) discdb.Title {
 	return title
 }
 
-// func WithSegmentMap(segmentMap string) func(*discdb.Title) {
-// 	return func(title *discdb.Title) {
-// 		title.SegmentMap = segmentMap
-// 		title.Signature = signature.SegmentSignature(segmentMap)
-// 	}
-// }
-
 func WithItem(item *discdb.Item) func(*discdb.Title) {
 	return func(title *discdb.Title) {
 		title.Item = item
