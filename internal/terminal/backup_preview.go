@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"m-macdonald/mkv-mapper/internal/model"
-	"m-macdonald/mkv-mapper/internal/preview"
 
 	"github.com/pterm/pterm"
 )
@@ -21,7 +20,7 @@ func NewBackupPreviewRenderer(out io.Writer) BackupPreviewRenderer {
 }
 
 func (b *BackupPreviewRenderer) Render(plan model.ValidatedBackupPlan) error {
-	view := preview.BuildBackupPlanView(plan)
+	view := model.BuildBackupPlanView(plan)
 
 	if err := b.renderHeader(view); err != nil {
 		return err
@@ -36,13 +35,13 @@ func (b *BackupPreviewRenderer) Render(plan model.ValidatedBackupPlan) error {
 	return nil
 }
 
-func (b *BackupPreviewRenderer) renderHeader(view preview.BackupPlanView) error {
+func (b *BackupPreviewRenderer) renderHeader(view model.BackupPlanView) error {
 	line := pterm.NewStyle(pterm.Bold).Sprintf("Backup: %s → %s (~%s)", view.Label, view.OutputDir, view.Size)
 	_, err := fmt.Fprintf(b.out, "%s\n\n", line)
 	return err
 }
 
-func (b *BackupPreviewRenderer) renderValidation(view preview.BackupPlanView) error {
+func (b *BackupPreviewRenderer) renderValidation(view model.BackupPlanView) error {
 	for _, group := range view.CheckGroups {
 		if err := renderCheckResults(b.out, group.Label, group.Results); err != nil {
 			return err

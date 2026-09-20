@@ -1,11 +1,10 @@
-package preview
+package model
 
 import (
 	"fmt"
 	"sort"
 	"strconv"
 
-	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
 	"m-macdonald/mkv-mapper/internal/validation"
 )
@@ -44,10 +43,10 @@ type RipPlanView struct {
 // The concept of groups may be valuable in the future, so it may not need to be ripped out completely.
 var groupOrder = []validation.CheckGroupLabel{validation.BackupLabel, validation.RipLabel}
 
-func BuildRipPlanView(plan model.ValidatedRipPlan) RipPlanView {
+func BuildRipPlanView(plan ValidatedRipPlan) RipPlanView {
 	warningsByTitle := indexByTitleId(
 		plan.BuildReport.Warnings,
-		func(w model.PlanWarning) *string {
+		func(w PlanWarning) *string {
 			s := strconv.Itoa(int(w.TitleId))
 			return &s
 		},

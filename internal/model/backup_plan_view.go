@@ -1,7 +1,6 @@
-package preview
+package model
 
 import (
-	"m-macdonald/mkv-mapper/internal/model"
 	"m-macdonald/mkv-mapper/internal/util"
 	"m-macdonald/mkv-mapper/internal/validation"
 )
@@ -14,7 +13,7 @@ type BackupPlanView struct {
 	CheckGroups []CheckGroupView
 }
 
-func BuildBackupPlanView(plan model.ValidatedBackupPlan) BackupPlanView {
+func BuildBackupPlanView(plan ValidatedBackupPlan) BackupPlanView {
 	view := BackupPlanView{
 		Label:     plan.Label,
 		OutputDir: plan.OutputDir,
