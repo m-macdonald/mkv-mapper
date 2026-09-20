@@ -221,8 +221,7 @@ func (c *Client) ReadDisc(ctx context.Context, discRoot string) (DiscInfo, error
 
 		switch line := result.Line.(type) {
 		case lines.Message:
-			// TODO: Move hardcoded string into a constant
-			if line.Code == "3309" {
+			if line.Code == lines.MessageCodeDedup {
 				discarded := model.NewSourceFilename(line.Params[0])
 				survivor := model.NewSourceFilename(line.Params[1])
 				aliasSets.union(discarded, survivor)
