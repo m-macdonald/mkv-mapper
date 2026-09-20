@@ -4,6 +4,11 @@ import (
 	"strconv"
 )
 
+const (
+	// If this definition set expands in the future, consider turning it into a type
+	MessageCodeDedup = "3309"
+)
+
 type Message struct {
 	parsedLineBase
 	Code                 string

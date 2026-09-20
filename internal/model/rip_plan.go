@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/signature"
 )
 
 type DiscIdentity struct {
@@ -33,7 +32,7 @@ func (p RipPlanBase) Intents() []TitleIntent {
 	intents := make([]TitleIntent, 0, len(p.Titles))
 	for _, title := range p.Titles {
 		intents = append(intents, TitleIntent{
-			Signature: title.SegmentSignature,
+			Identity:  title.Identity,
 			FinalName: title.FinalName,
 		})
 	}
@@ -76,7 +75,7 @@ type RipPlan struct {
 
 func NewRipPlan(base RipPlanBase, report BuildReport) RipPlan {
 	return RipPlan{
-		RipPlanBase:    base,
+		RipPlanBase: base,
 		BuildReport: report,
 		// Newly constructed plans always have every title
 		IsAllTitles: true,
@@ -95,8 +94,7 @@ func (p RipPlan) ApplySelection(selection Selection) RipPlan {
 
 type TitleRipPlan struct {
 	TitleId           lines.TitleId
-	SourcePlaylist    string
-	SegmentSignature  signature.SegmentSignature
+	Identity          TitleIdentity
 	MakeMkvOutputFile string
 	FinalName         string
 	EstimatedSize     uint64
@@ -105,31 +103,47 @@ type TitleRipPlan struct {
 }
 
 type TitleIntent struct {
-	Signature signature.SegmentSignature
+	Identity  TitleIdentity
 	FinalName string
 }
 
 func (p RipPlan) MergeIntents(intents []TitleIntent) (RipPlan, error) {
-	bySignature := groupTitleIntentBySignature(intents)
-	matched := filterTitles(p.Titles, func(tp TitleRipPlan) bool {
-		_, ok := bySignature[tp.SegmentSignature]
-		return ok
-	})
-	if len(matched) != len(intents) {
-		return RipPlan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(matched), len(intents))
+	byIdentityName := groupTitleIntentByIdentityName(intents)
+
+	titles := make([]TitleRipPlan, 0, len(intents))
+	for _, tp := range p.Titles {
+		intent, ok := findMatchingIntent(tp.Identity, byIdentityName)
+		if !ok {
+			continue
+		}
+		tp.FinalName = intent.FinalName
+		titles = append(titles, tp)
 	}
-	titles := make([]TitleRipPlan, 0, len(matched))
-	for _, t := range matched {
-		t.FinalName = bySignature[t.SegmentSignature].FinalName
-		titles = append(titles, t)
+
+	if len(titles) != len(intents) {
+		return RipPlan{}, fmt.Errorf("only matched %d of %d selected titles when re-scanning", len(titles), len(intents))
 	}
+
 	return p.ApplySelection(Selection{Selected: titles}), nil
 }
 
-func groupTitleIntentBySignature(intents []TitleIntent) map[signature.SegmentSignature]TitleIntent {
-	bySignature := make(map[signature.SegmentSignature]TitleIntent, len(intents))
+// Indexes each intent under every name in its identity
+// so that a match can be found by looking it up under any name that it's known by.
+func groupTitleIntentByIdentityName(intents []TitleIntent) map[SourceFilename]TitleIntent {
+	index := make(map[SourceFilename]TitleIntent)
 	for _, intent := range intents {
-		bySignature[intent.Signature] = intent
+		for _, name := range intent.Identity.Names() {
+			index[name] = intent
+		}
 	}
-	return bySignature
+	return index
+}
+
+func findMatchingIntent(id TitleIdentity, index map[SourceFilename]TitleIntent) (TitleIntent, bool) {
+	for _, name := range id.Names() {
+		if intent, ok := index[name]; ok {
+			return intent, true
+		}
+	}
+	return TitleIntent{}, false
 }

@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"m-macdonald/mkv-mapper/internal/makemkv/lines"
-	"m-macdonald/mkv-mapper/internal/signature"
+	"m-macdonald/mkv-mapper/internal/model"
 
 	"go.uber.org/zap"
 )
@@ -197,9 +197,8 @@ type DiscInfo struct {
 
 // TODO: Bring this struct's name in line with DiscInfo
 type Title struct {
-	SourceFilename string
+	Identity       model.TitleIdentity
 	OutputFilename string
-	Signature      signature.SegmentSignature
 	OutputFileSize uint64
 	TitleId        lines.TitleId
 }
@@ -211,6 +210,7 @@ func (c *Client) ReadDisc(ctx context.Context, discRoot string) (DiscInfo, error
 
 	disc := DiscInfo{}
 	titleMap := map[lines.TitleId]*Title{}
+	aliasSets := newAliasSets()
 	for result := range resultChan {
 		if result.Error != nil {
 			return DiscInfo{}, result.Error
@@ -220,6 +220,12 @@ func (c *Client) ReadDisc(ctx context.Context, discRoot string) (DiscInfo, error
 		}
 
 		switch line := result.Line.(type) {
+		case lines.Message:
+			if line.Code == lines.MessageCodeDedup {
+				discarded := model.NewSourceFilename(line.Params[0])
+				survivor := model.NewSourceFilename(line.Params[1])
+				aliasSets.union(discarded, survivor)
+			}
 		case lines.TitleInfo:
 			if _, exists := titleMap[line.TitleId]; !exists {
 				titleMap[line.TitleId] = &Title{TitleId: line.TitleId}
@@ -239,29 +245,29 @@ func (c *Client) ReadDisc(ctx context.Context, discRoot string) (DiscInfo, error
 	for _, title := range titleMap {
 		disc.Titles = append(disc.Titles, *title)
 	}
+	c.attachAliases(disc.Titles, aliasSets)
 
 	return disc, nil
 }
 
 func (c *Client) composeTitle(title *Title, line lines.TitleInfo) error {
 	switch line.AttributeId {
+	case lines.TitleInfoCodeSourceTitleId:
+		// DVD titles report Source Title Id instead of SourceFilename.
+		// Only use it if the primary identity hasn't already been set by a SourceFilename line
+		if title.Identity.Primary == model.NewSourceFilename("") {
+			title.Identity.Primary = model.NewSourceFilename(line.Value)
+		}
 	case lines.TitleInfoCodeSourceFileName:
-		title.SourceFilename = line.Value
+		title.Identity.Primary = model.NewSourceFilename(line.Value)
 	case lines.TitleInfoCodeOutputFileName:
 		title.OutputFilename = line.Value
-	case lines.TitleInfoCodeSegmentsMap:
-		signature, err := signature.NormalizeSegments(line.Value)
-		if err != nil {
-			return err
-		}
-		title.Signature = signature
 	case lines.TitleInfoCodeSize:
 		size, err := strconv.ParseUint(line.Value, 10, 64)
 		if err != nil {
 			return fmt.Errorf("parsing title size %q: %w", line.Value, err)
-		} else {
-			title.OutputFileSize = size
 		}
+		title.OutputFileSize = size
 	}
 
 	return nil
@@ -285,4 +291,70 @@ func (c *Client) ScanDrives(ctx context.Context) ([]lines.DriveScan, error) {
 		}
 	}
 	return drives, nil
+}
+
+func (c *Client) attachAliases(titles []Title, sets *aliasSets) {
+	groups := sets.groups()
+
+	titlesByRoot := make(map[model.SourceFilename][]int)
+	for i, t := range titles {
+		root := sets.find(t.Identity.Primary)
+		titlesByRoot[root] = append(titlesByRoot[root], i)
+	}
+
+	for root, memberTitleIdxs := range titlesByRoot {
+		if len(memberTitleIdxs) > 1 {
+			var names []string
+			for _, idx := range memberTitleIdxs {
+				names = append(names, string(titles[idx].Identity.Primary))
+			}
+
+			c.logger.Warnf(
+				"multiple titles share an alias group",
+				zap.String("groupRoot", string(root)),
+				zap.Strings("titles", names))
+			continue
+		}
+
+		idx := memberTitleIdxs[0]
+		for _, member := range groups[root] {
+			if member != titles[idx].Identity.Primary {
+				titles[idx].Identity.Aliases = append(titles[idx].Identity.Aliases, member)
+			}
+		}
+	}
+}
+
+type aliasSets struct {
+	parent map[model.SourceFilename]model.SourceFilename
+}
+
+func newAliasSets() *aliasSets {
+	return &aliasSets{parent: make(map[model.SourceFilename]model.SourceFilename)}
+}
+
+func (a *aliasSets) find(s model.SourceFilename) model.SourceFilename {
+	if _, ok := a.parent[s]; !ok {
+		a.parent[s] = s
+	}
+	if a.parent[s] != s {
+		a.parent[s] = a.find(a.parent[s])
+	}
+	return a.parent[s]
+}
+
+func (a *aliasSets) union(x model.SourceFilename, y model.SourceFilename) {
+	rootX, rootY := a.find(x), a.find(y)
+	if rootX != rootY {
+		a.parent[rootX] = rootY
+	}
+}
+
+func (a *aliasSets) groups() map[model.SourceFilename][]model.SourceFilename {
+	out := make(map[model.SourceFilename][]model.SourceFilename)
+	for member := range a.parent {
+		root := a.find(member)
+		out[root] = append(out[root], member)
+	}
+	return out
 }

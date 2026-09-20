@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"m-macdonald/mkv-mapper/internal/model"
-	"m-macdonald/mkv-mapper/internal/preview"
 	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/pterm/pterm"
@@ -22,7 +21,7 @@ func NewRipPreviewRenderer(out io.Writer) RipPreviewRenderer {
 }
 
 func (r *RipPreviewRenderer) Render(plan model.ValidatedRipPlan) error {
-	view := preview.BuildRipPlanView(plan)
+	view := model.BuildRipPlanView(plan)
 
 	if err := r.renderHeader(view); err != nil {
 		return err
@@ -39,7 +38,7 @@ func (r *RipPreviewRenderer) Render(plan model.ValidatedRipPlan) error {
 	return nil
 }
 
-func (r *RipPreviewRenderer) renderHeader(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderHeader(view model.RipPlanView) error {
 	title := pterm.NewStyle(pterm.Bold).Sprintf("%s (%d) - %s", view.DiscName, view.Year, view.Format)
 	hash := pterm.NewStyle(pterm.FgGray).Sprintf("Hash: %s", view.Hash)
 
@@ -47,7 +46,7 @@ func (r *RipPreviewRenderer) renderHeader(view preview.RipPlanView) error {
 	return err
 }
 
-func (r *RipPreviewRenderer) renderTitles(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderTitles(view model.RipPlanView) error {
 	if _, err := fmt.Fprintf(r.out, "Titles:\n"); err != nil {
 		return err
 	}
@@ -61,7 +60,7 @@ func (r *RipPreviewRenderer) renderTitles(view preview.RipPlanView) error {
 	return r.renderUnmatched(view)
 }
 
-func (r *RipPreviewRenderer) renderTitle(titleView preview.TitleRipPlanView) error {
+func (r *RipPreviewRenderer) renderTitle(titleView model.TitleRipPlanView) error {
 	_, err := fmt.Fprintf(
 		r.out,
 		"  %s → %s (%s)\n",
@@ -82,7 +81,7 @@ func (r *RipPreviewRenderer) renderTitle(titleView preview.TitleRipPlanView) err
 	return nil
 }
 
-func (r *RipPreviewRenderer) renderValidation(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderValidation(view model.RipPlanView) error {
 	for _, group := range view.CheckGroups {
 		if err := renderCheckResults(r.out, group.Label, group.Results); err != nil {
 			return err
@@ -92,7 +91,7 @@ func (r *RipPreviewRenderer) renderValidation(view preview.RipPlanView) error {
 	return nil
 }
 
-func (r *RipPreviewRenderer) renderUnmatched(view preview.RipPlanView) error {
+func (r *RipPreviewRenderer) renderUnmatched(view model.RipPlanView) error {
 	if len(view.Unmatched) == 0 {
 		return nil
 	}
