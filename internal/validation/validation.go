@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"m-macdonald/mkv-mapper/internal/files"
 	"m-macdonald/mkv-mapper/internal/util"
@@ -138,8 +139,32 @@ func OutputDirValid(dir string) Check {
 	}
 }
 
+type SpaceRequirement struct {
+	Label CheckGroupLabel
+	Dir   string
+	Bytes uint64
+}
+
 func FreeSpace(dir string, needed uint64) Check {
+	return FreeSpaceShared(SpaceRequirement{Dir: dir, Bytes: needed})
+}
+
+// If the filesystem of an entry in others cannot be determined, it is assumed to be shared.
+func FreeSpaceShared(own SpaceRequirement, others ...SpaceRequirement) Check {
 	return func(ctx context.Context) []Result {
+		dir := own.Dir
+		needed, breakdown, err := sharedSpaceNeeded(own, others)
+		if err != nil {
+			return []Result{
+				{
+					Status:  StatusFail,
+					Code:    OutputDirInvalid,
+					Message: fmt.Sprintf("could not determine filesystem for output directory: %s", dir),
+					Cause:   err,
+				},
+			}
+		}
+
 		free, err := files.GetFreeDiskSpace(dir)
 		if err != nil {
 			return []Result{
@@ -158,9 +183,10 @@ func FreeSpace(dir string, needed uint64) Check {
 					Status: StatusFail,
 					Code:   InsufficientSpace,
 					Message: fmt.Sprintf(
-						"insufficient disk space %s: need %s, have %s",
+						"insufficient disk space %s: need %s%s, have %s",
 						dir,
 						util.FormatSize(needed),
+						breakdown,
 						util.FormatSize(free)),
 				},
 			}
@@ -170,13 +196,48 @@ func FreeSpace(dir string, needed uint64) Check {
 			{
 				Status: StatusPass,
 				Message: fmt.Sprintf(
-					"sufficient disk space %s: need %s, have %s",
+					"sufficient disk space %s: need %s%s, have %s",
 					dir,
 					util.FormatSize(needed),
+					breakdown,
 					util.FormatSize(free)),
 			},
 		}
 	}
+}
+
+func sharedSpaceNeeded(own SpaceRequirement, others []SpaceRequirement) (uint64, string, error) {
+	if len(others) == 0 {
+		return own.Bytes, "", nil
+	}
+
+	ownFS, err := files.FilesystemID(own.Dir)
+	if err != nil {
+		return 0, "", err
+	}
+
+	needed := own.Bytes
+	parts := []string{formatRequirement(own)}
+	for _, other := range others {
+		otherFS, err := files.FilesystemID(other.Dir)
+		if err == nil && otherFS != ownFS {
+			continue
+		}
+		needed += other.Bytes
+		parts = append(parts, formatRequirement(other))
+	}
+
+	if len(parts) == 1 {
+		return needed, "", nil
+	}
+	return needed, " (" + strings.Join(parts, " + ") + ")", nil
+}
+
+func formatRequirement(req SpaceRequirement) string {
+	if req.Label == "" {
+		return util.FormatSize(req.Bytes)
+	}
+	return fmt.Sprintf("%s %s", req.Label, util.FormatSize(req.Bytes))
 }
 
 type FilenameTarget struct {

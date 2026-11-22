@@ -237,7 +237,7 @@ func (e *Engine) ripSelected(
 	return nil
 }
 
-func RipChecks(plan model.RipPlan, estimatedBytes uint64) validation.CheckGroup {
+func RipChecks(plan model.RipPlan, compounding ...validation.SpaceRequirement) validation.CheckGroup {
 	targets := make([]validation.FilenameTarget, 0, len(plan.Titles))
 	for _, title := range plan.Titles {
 		targets = append(targets, validation.FilenameTarget{
@@ -245,11 +245,16 @@ func RipChecks(plan model.RipPlan, estimatedBytes uint64) validation.CheckGroup 
 			FileName: title.FinalName,
 		})
 	}
+	own := validation.SpaceRequirement{
+		Label: validation.RipLabel,
+		Dir:   plan.OutputDir,
+		Bytes: plan.SumTitleSizes(),
+	}
 	return validation.CheckGroup{
-		Label: "Rip",
+		Label: validation.RipLabel,
 		Checks: []validation.Check{
 			validation.OutputDirValid(plan.OutputDir),
-			validation.FreeSpace(plan.OutputDir, estimatedBytes),
+			validation.FreeSpaceShared(own, compounding...),
 			validation.NoConflicts(plan.OutputDir, targets),
 		},
 	}

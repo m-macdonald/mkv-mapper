@@ -109,6 +109,123 @@ func TestValidateDiskSpace(t *testing.T) {
 	}
 }
 
+func TestFreeSpaceShared(t *testing.T) {
+	// Both requirements live under the same temp dir, so they share a filesystem.
+	root := t.TempDir()
+	ripDir := filepath.Join(root, "rip")
+	backupDir := filepath.Join(root, "backup")
+	for _, dir := range []string{ripDir, backupDir} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	half := uint64(math.MaxUint64 / 2)
+
+	tests := []struct {
+		name       string
+		own        SpaceRequirement
+		others     []SpaceRequirement
+		wantStatus Status
+		wantCode   Code
+	}{
+		{
+			name:       "no concurrent requirements",
+			own:        SpaceRequirement{Label: RipLabel, Dir: ripDir, Bytes: 1},
+			wantStatus: StatusPass,
+		},
+		{
+			name:       "small shared requirements fit",
+			own:        SpaceRequirement{Label: RipLabel, Dir: ripDir, Bytes: 1},
+			others:     []SpaceRequirement{{Label: BackupLabel, Dir: backupDir, Bytes: 1}},
+			wantStatus: StatusPass,
+		},
+		{
+			// Neither half fits on its own, so this also fails without sharing,
+			// but it exercises summation across the shared filesystem.
+			name:       "shared requirements sum past free space",
+			own:        SpaceRequirement{Label: RipLabel, Dir: ripDir, Bytes: half},
+			others:     []SpaceRequirement{{Label: BackupLabel, Dir: backupDir, Bytes: half}},
+			wantStatus: StatusFail,
+			wantCode:   InsufficientSpace,
+		},
+		{
+			name:       "unresolvable concurrent dir is conservatively counted",
+			own:        SpaceRequirement{Label: RipLabel, Dir: ripDir, Bytes: 1},
+			others:     []SpaceRequirement{{Label: BackupLabel, Dir: filepath.Join(root, "missing"), Bytes: math.MaxUint64 - 1}},
+			wantStatus: StatusFail,
+			wantCode:   InsufficientSpace,
+		},
+		{
+			name:       "unresolvable own dir fails",
+			own:        SpaceRequirement{Label: RipLabel, Dir: filepath.Join(root, "missing"), Bytes: 1},
+			others:     []SpaceRequirement{{Label: BackupLabel, Dir: backupDir, Bytes: 1}},
+			wantStatus: StatusFail,
+			wantCode:   OutputDirInvalid,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := FreeSpaceShared(test.own, test.others...)(context.Background())
+			if len(got) != 1 {
+				t.Fatalf("expected exactly one result, got %d", len(got))
+			}
+			if got[0].Status != test.wantStatus {
+				t.Errorf("expected status %q, got %q (%s)", test.wantStatus, got[0].Status, got[0].Message)
+			}
+			if test.wantCode != "" && got[0].Code != test.wantCode {
+				t.Errorf("expected code %q, got %q", test.wantCode, got[0].Code)
+			}
+		})
+	}
+}
+
+func TestSharedSpaceNeeded(t *testing.T) {
+	root := t.TempDir()
+	own := SpaceRequirement{Label: RipLabel, Dir: root, Bytes: 10}
+
+	tests := []struct {
+		name          string
+		others        []SpaceRequirement
+		wantNeeded    uint64
+		wantBreakdown bool
+	}{
+		{
+			name:          "no concurrent requirements",
+			wantNeeded:    10,
+			wantBreakdown: false,
+		},
+		{
+			name:          "requirement on same filesystem is summed",
+			others:        []SpaceRequirement{{Label: BackupLabel, Dir: root, Bytes: 25}},
+			wantNeeded:    35,
+			wantBreakdown: true,
+		},
+		{
+			name:          "unresolvable requirement is conservatively summed",
+			others:        []SpaceRequirement{{Label: BackupLabel, Dir: filepath.Join(root, "missing"), Bytes: 25}},
+			wantNeeded:    35,
+			wantBreakdown: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			needed, breakdown, err := sharedSpaceNeeded(own, test.others)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if needed != test.wantNeeded {
+				t.Errorf("expected %d bytes needed, got %d", test.wantNeeded, needed)
+			}
+			if gotBreakdown := breakdown != ""; gotBreakdown != test.wantBreakdown {
+				t.Errorf("expected breakdown present=%t, got %q", test.wantBreakdown, breakdown)
+			}
+		})
+	}
+}
+
 func TestValidateExistingFiles(t *testing.T) {
 	tests := []struct {
 		name       string

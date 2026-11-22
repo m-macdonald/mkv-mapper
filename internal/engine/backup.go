@@ -91,11 +91,15 @@ func (e *Engine) RunBackupPlan(
 	)
 }
 
-func BackupChecks(dir string, estimatedBytes uint64) validation.CheckGroup {
+func BackupChecks(plan model.BackupPlan) validation.CheckGroup {
+	// This is an intentional overestimation.
+	// It's possible (likely) that we are counting the size of some segments more than once.
+	// Better to overestimate than underestimate
+	needed := plan.SumTitleSizes()
 	return validation.CheckGroup{
-		Label: "Backup",
+		Label: validation.BackupLabel,
 		Checks: []validation.Check{
-			validation.FreeSpace(dir, estimatedBytes),
+			validation.FreeSpace(plan.OutputDir, needed),
 		},
 	}
 }

@@ -69,8 +69,7 @@ func runPreviewNoBackup(
 		return err
 	}
 
-	needed := selectedPlan.SumTitleSizes()
-	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan, needed)}
+	checks := []validation.CheckGroup{engine.RipChecks(selectedPlan)}
 	validatedPlan := eng.ValidateRipPlan(ctx, selectedPlan, checks)
 
 	return renderers.preview.Render(validatedPlan)
@@ -87,17 +86,12 @@ func runPreviewWithBackup(
 		return err
 	}
 
-	validatedBackupPlan, err := planBackup(ctx, eng, cfg, identity, discInfo)
+	validatedBackupPlan, validatedPlan, err := planRipWithBackup(ctx, cfg, eng, identity, discInfo)
 	if err != nil {
 		return err
 	}
 
 	if err := renderers.backup.Render(validatedBackupPlan); err != nil {
-		return err
-	}
-
-	validatedPlan, err := planRip(ctx, cfg, eng, identity, discInfo)
-	if err != nil {
 		return err
 	}
 
