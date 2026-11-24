@@ -25,6 +25,7 @@ import (
 
 const (
 	backup     = "backup"
+	backupDir  = "backup-dir"
 	keepBackup = "keep-backup"
 )
 
@@ -43,7 +44,7 @@ func init() {
 		keepBackup,
 		config.DiscRipBackupKeep,
 		false,
-		"Retain the backup after the rip completes. Will be deleted otherwise. Does nothing if backup is not specified.")
+		fmt.Sprintf("Retain the backup after the rip completes. Will be deleted otherwise. Requires --%s", backup))
 }
 
 func runRip(cmd *cobra.Command, args []string) error {

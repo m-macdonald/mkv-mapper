@@ -21,26 +21,39 @@ const (
 var dfltMode = config.DefaultConfig().Disc.Rip.Mode
 
 func registerRipFlags(cmd *cobra.Command) {
-	registerBackupFlag(cmd)
+	registerBackupFlags(cmd)
 	registerRipOutputDirFlag(cmd)
 	registerModeFlag(cmd)
 	registerTemplateOverrideFlag(cmd)
 }
 
-func registerBackupFlag(cmd *cobra.Command) {
-	util.RegisterOptionalStringFlag(
+func registerBackupFlags(cmd *cobra.Command) {
+	util.RegisterBoolFlag(
 		cmd.Flags(),
 		backup,
-		fmt.Sprintf("Include a disc backup in this operation (optionally, specify a template for the destination directory: --%s=[target dir])", backup))
-	util.AppendPreRun(cmd, func(cmd *cobra.Command, args []string) {
-		backupFlag := cmd.Flags().Lookup(backup)
-		if backupFlag != nil && backupFlag.Changed {
-			viper.Set(config.DiscRipBackup, true)
-			if o, ok := backupFlag.Value.(*util.OptionalString); ok && !o.WasEmpty {
-				viper.Set(config.DiscBackupOutputDirTemplate, backupFlag.Value.String())
-			}
+		config.DiscRipBackup,
+		false,
+		"Include a disc backup in this operation")
+	util.RegisterStringFlag(
+		cmd.Flags(),
+		backupDir,
+		config.DiscBackupOutputDirTemplate,
+		"",
+		fmt.Sprintf("template for the backup directory, e.g. ~/Videos/backup/{{.Disc.Label}}. Requires --%s", backup))
+	util.AppendPreRunE(cmd, requireBackup)
+}
+
+// Checks the resolved config rather than the --backup flag, so a config-enabled backup also satisfies it.
+func requireBackup(cmd *cobra.Command, args []string) error {
+	if viper.GetBool(config.DiscRipBackup) {
+		return nil
+	}
+	for _, name := range []string{backupDir, keepBackup} {
+		if cmd.Flags().Changed(name) {
+			return fmt.Errorf("--%s requires --%s", name, backup)
 		}
-	})
+	}
+	return nil
 }
 
 func registerTemplateOverrideFlag(cmd *cobra.Command) {
