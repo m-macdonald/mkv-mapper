@@ -36,6 +36,7 @@ to quickly create a Cobra application.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)
 	},
+	SilenceUsage: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -52,6 +53,9 @@ var cfgFile string
 func init() {
 	cobra.EnableTraverseRunHooks = true
 	rootCmd.AddCommand(disc.Cmd)
+	rootCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		return util.WithUsageHint(cmd, err)
+	})
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg, "", "Path to the config file")
 	rootCmd.PersistentFlags().String(logLevel, "info", "The level at which we should log any messages")

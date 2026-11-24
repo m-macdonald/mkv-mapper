@@ -50,7 +50,7 @@ func requireBackup(cmd *cobra.Command, args []string) error {
 	}
 	for _, name := range []string{backupDir, keepBackup} {
 		if cmd.Flags().Changed(name) {
-			return fmt.Errorf("--%s requires --%s", name, backup)
+			return util.WithUsageHint(cmd, fmt.Errorf("--%s requires --%s", name, backup))
 		}
 	}
 	return nil
