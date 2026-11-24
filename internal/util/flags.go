@@ -8,62 +8,63 @@ import (
 	"github.com/spf13/viper"
 )
 
-type OptionalString struct {
-	Value    string
-	WasEmpty bool
-}
+const viperKeyAnnotation = "viper-key"
 
-const emptyMarker = "\x00"
-
-func (o *OptionalString) String() string {
-	return o.Value
-}
-
-func (o *OptionalString) Set(s string) error {
-	o.WasEmpty = s == emptyMarker
-	if !o.WasEmpty {
-		o.Value = s
-	}
-	return nil
-}
-
-func (o *OptionalString) Type() string {
-	return "string"
-}
-
-func RegisterOptionalStringFlag(flagSet *pflag.FlagSet, name, usage string) {
-	o := &OptionalString{}
-	flagSet.Var(o, name, usage)
-	flagSet.Lookup(name).NoOptDefVal = emptyMarker
-}
-
-func bindConfigFlag(flags *pflag.FlagSet, viperKey, flagName string) {
-	if err := viper.BindPFlag(viperKey, flags.Lookup(flagName)); err != nil {
-		panic(fmt.Sprintf("bindConfigFlag: binding %q to %q: %v", flagName, viperKey, err))
+func annotateConfigKey(flags *pflag.FlagSet, viperKey, flagName string) {
+	// Sets an annotation on the flag containing the Viper key to bind to.
+	// This allows us to tie the Viper key to the flag without actually binding it.
+	// We delay binding it until BindConfigFlags is called, after we've determined the command that is running.
+	// Binding here instead would be wrong. Viper holds only one flag per key, so the last command registered
+	// would take the key from every other command whose flag shares it.
+	if err := flags.SetAnnotation(flagName, viperKeyAnnotation, []string{viperKey}); err != nil {
+		panic(fmt.Sprintf("annotating %q with %q: %v", flagName, viperKey, err))
 	}
 }
 
-func AppendPreRun(cmd *cobra.Command, fn func(cmd *cobra.Command, args []string)) {
-	existing := cmd.PreRun
-	cmd.PreRun = func(cmd *cobra.Command, args []string) {
-		if existing != nil {
-			existing(cmd, args)
+// BindConfigFlags binds each of cmd's flags that was registered with a config key to that key in viper.
+//
+// Call it once, for the command being executed, before reading config.
+// Viper allows only one flag per key, so flags from different commands that share a key will only bind the last encountered flag.
+func BindConfigFlags(cmd *cobra.Command) error {
+	var err error
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		keys := flag.Annotations[viperKeyAnnotation]
+		if err != nil || len(keys) == 0 {
+			return
 		}
-		fn(cmd, args)
+		if bindErr := viper.BindPFlag(keys[0], flag); bindErr != nil {
+			err = fmt.Errorf("binding flag %q to %q: %w", flag.Name, keys[0], bindErr)
+		}
+	})
+	return err
+}
+
+// AppendPreRunE chains fn after any PreRunE already set on cmd, stopping at the first error.
+// Use carefully. Cobra ignores a PreRun defined on a command that has a PreRunE, 
+// so this func could cause PreRun funcs to be unintentionally skipped.
+func AppendPreRunE(cmd *cobra.Command, fn func(cmd *cobra.Command, args []string) error) {
+	existing := cmd.PreRunE
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if existing != nil {
+			if err := existing(cmd, args); err != nil {
+				return err
+			}
+		}
+		return fn(cmd, args)
 	}
 }
 
 func RegisterStringFlag(flags *pflag.FlagSet, flagName string, viperKey string, defaultValue string, usage string) {
 	flags.String(flagName, defaultValue, usage)
-	bindConfigFlag(flags, viperKey, flagName)
+	annotateConfigKey(flags, viperKey, flagName)
 }
 
 func RegisterBoolFlag(flags *pflag.FlagSet, flagName string, viperKey string, defaultValue bool, usage string) {
 	flags.Bool(flagName, defaultValue, usage)
-	bindConfigFlag(flags, viperKey, flagName)
+	annotateConfigKey(flags, viperKey, flagName)
 }
 
 func RegisterVarFlag(flags *pflag.FlagSet, value pflag.Value, flagName string, viperKey string, usage string) {
 	flags.Var(value, flagName, usage)
-	bindConfigFlag(flags, viperKey, flagName)
+	annotateConfigKey(flags, viperKey, flagName)
 }

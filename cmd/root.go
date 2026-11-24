@@ -12,6 +12,7 @@ import (
 
 	"m-macdonald/mkv-mapper/cmd/disc"
 	"m-macdonald/mkv-mapper/internal/config"
+	"m-macdonald/mkv-mapper/internal/util"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -58,6 +59,9 @@ func init() {
 
 func initConfig(cmd *cobra.Command) error {
 	viper.BindPFlag(config.LogLevel, cmd.Flags().Lookup(logLevel))
+	if err := util.BindConfigFlags(cmd); err != nil {
+		return err
+	}
 	viper.SetEnvPrefix(config.EnvPrefix)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "*", "-", "*"))
 	viper.AutomaticEnv()
