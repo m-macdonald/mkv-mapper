@@ -21,6 +21,7 @@
           gopls
           gotools
           cobra-cli
+          goreleaser
         ];
       };
     });

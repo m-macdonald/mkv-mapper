@@ -18,6 +18,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 const (
 	logLevel = "log-level"
 	cfg      = "config"
@@ -52,6 +58,8 @@ var cfgFile string
 
 func init() {
 	cobra.EnableTraverseRunHooks = true
+	rootCmd.Version = fmt.Sprintf("%s (commit %s, build %s)", version, commit, date)
+
 	rootCmd.AddCommand(disc.Cmd)
 	rootCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
 		return util.WithUsageHint(cmd, err)

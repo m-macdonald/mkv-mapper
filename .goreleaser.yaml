@@ -1,0 +1,35 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: mkv-mapper
+    main: ./
+    binary: mkv-mapper
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X m-macdonald/mkv-mapper/cmd.version={{.Version}}
+      - -X m-macdonald/mkv-mapper/cmd.commit={{.Commit}}
+      - -X m-macdonald/mkv-mapper/cmd.date={{.Date}}
+
+archives:
+  - id: mkv-mapper-archive
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
