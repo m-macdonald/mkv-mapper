@@ -39,8 +39,15 @@ func BindConfigFlags(cmd *cobra.Command) error {
 	return err
 }
 
+// WithUsageHint wraps err with a pointer to cmd's help text.
+// Use it for errors caused by how the command was invoked (bad flags, invalid flag combinations),
+// since full usage output is silenced on the root command.
+func WithUsageHint(cmd *cobra.Command, err error) error {
+	return fmt.Errorf("%w\nRun '%s --help' for usage.", err, cmd.CommandPath())
+}
+
 // AppendPreRunE chains fn after any PreRunE already set on cmd, stopping at the first error.
-// Use carefully. Cobra ignores a PreRun defined on a command that has a PreRunE, 
+// Use carefully. Cobra ignores a PreRun defined on a command that has a PreRunE,
 // so this func could cause PreRun funcs to be unintentionally skipped.
 func AppendPreRunE(cmd *cobra.Command, fn func(cmd *cobra.Command, args []string) error) {
 	existing := cmd.PreRunE
