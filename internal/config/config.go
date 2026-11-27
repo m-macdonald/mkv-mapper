@@ -23,8 +23,32 @@ const (
 	LogLevel                    = "logLevel"
 	MakeMkvPath                 = "makemkvPath"
 	ProgramDirname              = "mkv-mapper"
+	TemplateEpisode             = "templates.episode"
+	TemplateExtra               = "templates.extra"
+	TemplateMovie               = "templates.movie"
 	TemplateOverride            = "templates.override"
+	TemplateUnknown             = "templates.unknown"
 )
+
+// Keys lists every config key, so each can be bound to an environment variable.
+// viper.Unmarshal only checks the environment for keys viper already knows about,
+// which excludes keys that have no flag and are absent from the config file.
+var Keys = []string{
+	CachePath,
+	DiscBackupOutputDirTemplate,
+	DiscRipBackup,
+	DiscRipBackupKeep,
+	DiscRipMode,
+	DiscRipOutputDirTemplate,
+	DiscRoot,
+	LogLevel,
+	MakeMkvPath,
+	TemplateEpisode,
+	TemplateExtra,
+	TemplateMovie,
+	TemplateOverride,
+	TemplateUnknown,
+}
 
 type Config struct {
 	CachePath   string         `mapstructure:"cachePath"`

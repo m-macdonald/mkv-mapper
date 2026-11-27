@@ -67,8 +67,13 @@ func initConfig(cmd *cobra.Command) error {
 		return err
 	}
 	viper.SetEnvPrefix(config.EnvPrefix)
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "*", "-", "*"))
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
+	for _, key := range config.Keys {
+		if err := viper.BindEnv(key); err != nil {
+			return err
+		}
+	}
 
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
