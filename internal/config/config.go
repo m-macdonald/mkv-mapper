@@ -141,6 +141,10 @@ func mergeRip(base RipConfig, user RipConfig) RipConfig {
 	result.Backup = user.Backup
 	result.KeepBackup = user.KeepBackup
 
+	if user.Mode != "" {
+		result.Mode = user.Mode
+	}
+
 	if user.OutputDirTemplate != "" {
 		result.OutputDirTemplate = user.OutputDirTemplate
 	}
