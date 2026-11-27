@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package disc
 
 import (
@@ -19,7 +16,7 @@ import (
 var previewCmd = &cobra.Command{
 	Use:   "preview",
 	Short: "View the planned result of a disc rip",
-	Long:  ``,
+	Long:  "Scans the inserted disc and prints the files a rip would produce, along with any validation problems such as insufficient free space. Nothing is ripped or written.",
 	RunE:  runPreview,
 }
 

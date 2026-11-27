@@ -71,7 +71,7 @@ func registerRipOutputDirFlag(cmd *cobra.Command) {
 		outputDir,
 		config.DiscRipOutputDirTemplate,
 		"",
-		"template for the output directory, e.g. ~/Videos/{{.Media.Title}} ({{.Disc.Year}})")
+		"template for the output directory, e.g. ~/Videos/{{.Media.Title}} ({{.Media.Year}})")
 }
 
 func registerModeFlag(cmd *cobra.Command) {

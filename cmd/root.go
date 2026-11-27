@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -26,13 +23,13 @@ const (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "mkv-mapper",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "Rip optical discs with MakeMKV and name the output using TheDiscDB",
+	Long: `mkv-mapper scans the inserted disc with makemkvcon, identifies its titles
+using TheDiscDB (https://thediscdb.com), then rips the selected titles and
+names the resulting .mkv files from configurable templates.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Settings are read from flags, MKVMAP_* environment variables, and an optional
+config.json in the current directory or the user config directory.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig(cmd)
 	},
@@ -89,9 +86,10 @@ func initConfig(cmd *cobra.Command) error {
 	}
 
 	if err := viper.ReadInConfig(); err != nil {
+		// A config file is optional when searching the default locations, but one named via --config must exist.
 		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFoundError) {
-			return err
+		if errors.As(err, &configFileNotFoundError) {
+			return nil
 		}
 
 		return fmt.Errorf("failed to read config: %w", err)

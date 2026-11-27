@@ -14,7 +14,7 @@ import (
 
 var backupCmd = &cobra.Command{
 	Use:   "backup",
-	Short: "Backs up the cuurrently inserted disc to local storage",
+	Short: "Backs up the currently inserted disc to local storage",
 	Long:  "Copies the contents of the currently inserted optical disc to a local directory, without ripping or renaming titles.",
 	RunE:  runBackup,
 }
