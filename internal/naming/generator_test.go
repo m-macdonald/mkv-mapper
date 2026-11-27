@@ -112,10 +112,9 @@ func TestBuildTemplateVars(t *testing.T) {
 			Segments:       string(titleCtx.MakeMkvTitle.Signature),
 			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
-		Season:       titleCtx.DiscDbTitle.Item.Season,
-		Episode:      titleCtx.DiscDbTitle.Item.Episode,
-		EpisodeTitle: titleCtx.DiscDbTitle.Item.Title,
-		MovieTitle:   titleCtx.DiscDbTitle.Item.Title,
+		Season:    titleCtx.DiscDbTitle.Item.Season,
+		Episode:   titleCtx.DiscDbTitle.Item.Episode,
+		ItemTitle: titleCtx.DiscDbTitle.Item.Title,
 	}
 
 	got := buildTemplateVars(titleCtx)

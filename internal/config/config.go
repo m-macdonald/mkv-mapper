@@ -90,10 +90,10 @@ func DefaultConfig() Config {
 		// Assume makemkvcon is on the path
 		MakeMkvPath: "makemkvcon",
 		Templates: TemplateConfig{
-			Movie:   "{{.Media.Title}} ({{.Disc.Year}})",
-			Episode: "{{.Media.Title}}/Season {{.Item.Season}}/{{.Disc.SeriesTitle}} - S{{pad 2 .Item.Season}}E{{.Item.Episode}} - {{.Item.Title}}",
-			Extra:   "Extras/{{.Item.Title}}",
-			Unknown: "{{.MakeMkv.OutputFileName}}",
+			Movie:   "{{.Media.Title}} ({{.Media.Year}})",
+			Episode: "{{.Media.Title}} - S{{pad 2 .Season}}E{{pad 2 .Episode}} - {{.ItemTitle}}",
+			Extra:   "{{.Media.Title}} - {{.ItemTitle}}",
+			Unknown: "{{.MakeMkv.OutputFilename}}",
 		},
 		Disc: DiscConfig{
 			Backup: BackupConfig{
@@ -101,7 +101,7 @@ func DefaultConfig() Config {
 			},
 			Rip: RipConfig{
 				Mode:              ModeFullAuto,
-				OutputDirTemplate: "~/Videos/{{.Disc.Label}}",
+				OutputDirTemplate: "~/Videos/{{.Media.Title}} ({{.Media.Year}})",
 			},
 		},
 	}

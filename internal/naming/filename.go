@@ -156,10 +156,9 @@ type TemplateVars struct {
 	Title   TemplateTitle
 	MakeMkv TemplateMakeMkvTitle
 
-	Season       string
-	Episode      string
-	EpisodeTitle string
-	MovieTitle   string
+	Season    string
+	Episode   string
+	ItemTitle string
 }
 
 type TemplateMedia struct {
@@ -219,9 +218,8 @@ func buildTemplateVars(titleCtx TitleContext) TemplateVars {
 			OutputFileSize: titleCtx.MakeMkvTitle.OutputFileSize,
 		},
 
-		Season:       item.Season,
-		Episode:      item.Episode,
-		EpisodeTitle: item.Title,
-		MovieTitle:   item.Title,
+		Season:    item.Season,
+		Episode:   item.Episode,
+		ItemTitle: item.Title,
 	}
 }
